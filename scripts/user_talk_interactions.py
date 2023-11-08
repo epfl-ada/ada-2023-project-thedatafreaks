@@ -49,7 +49,9 @@ if __name__ == "__main__":
                     source = re.search(':(.*)', source).group(1)
                     if "/" in source:
                         source = source[:source.index("/")]
-                    interactions.append([source, target])
+                    
+                    if source in admin_set and target in admin_set:
+                        interactions.append([source, target])
 
     pd.DataFrame(interactions, columns=['user1', 'user2']).to_csv("../data/interactions.csv", compression="zip")
     print("Done")
