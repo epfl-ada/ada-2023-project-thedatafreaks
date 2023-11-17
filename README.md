@@ -35,7 +35,7 @@ The first dataset captures edits made on user talk pages. Using this dataset, we
 
 The second dataset that contain all edits across all Wikipedia pages. It serves as a valuable resource for understanding the editing activities of users present in our primary dataset. By looking at the modifications made by these users on various Wikipedia pages, we aim to gain insights into the content areas and topics that interest each individual.
 
-Both dataset being extremely large, we have decided to filter them "on the fly" so that we only keep the data that concern the users that have taken part in the elections between 2003 and 2013. After this, the size of the datasets is reasonable and can be handle without problem.
+Both dataset being extremely large, we have decided to filter them "on the fly" so that we only keep the data that concern the users that have taken part in the elections between 2003 and 2013. After this, the size of the datasets is reasonable and can be handled without problem.
 
 
 ## Methods
@@ -56,7 +56,7 @@ We use Louvain algorithm to find communities in the graph. Our goal is to find e
 For the edits, we compute the mean of the Jaccard similarity in the lists of edited pages between every pairs of users compute the correlation with a binary value that indicate that the pair is connected by a vote. The positive correlation indicates that we are more likely to vote for (or against) someone that share similar interests as us.
 
 
-We also look at the most edited pages in each topic to improve the characterization  of each communities and potentially make sense of suspicious voting patterns between communities.
+We also look at the most edited pages in each topic to improve the characterization of each communities and potentially make sense of suspicious voting patterns between communities.
 
 
 ## Timeline
