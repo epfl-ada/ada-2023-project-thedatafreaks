@@ -1,5 +1,3 @@
-# ada-2023-project-thedatafreaks
-=======
 # A more democratic Wikipedia
 *TheDataFreaks: Robin Jaccard, Jeremy Di Dio, Daniel Tavares, Anne-Laure Tettoni, Romain Berquet*
 
