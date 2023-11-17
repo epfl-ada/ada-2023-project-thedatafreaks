@@ -10,3 +10,18 @@ def create_interaction_graph():
     for idx, row in interaction_df.iterrows():
         G.add_edge(row['user1'], row['user2'], weight=row['weight'])
     return G
+
+
+def jaccard_similarity(set1, set2):
+    # intersection of two sets
+    intersection = len(set1.intersection(set2))
+    # Unions of two sets
+    union = len(set1.union(set2))
+     
+    return intersection / union
+
+
+def find_community(entity, communities):
+    for count, community in enumerate(communities):
+        if entity in community:
+            return count
