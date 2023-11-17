@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "ada2023"
+version = "0.1.0"
+description = ""
+authors = ["The Data Freaks"]
+readme = "README.md"
+packages = [{include = "scripts"}]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+pandas = "^2.1.2"
+numpy = "^1.26.1"
+networkx = "^3.2.1"
+tqdm = "^4.66.1"
+scipy = "^1.11.3"
+matplotlib = "^3.8.1"
+seaborn = "^0.13.0"
+notebook = "^7.0.6"
+black = "^23.11.0"
+statsmodels = "^0.14.0"
+
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
