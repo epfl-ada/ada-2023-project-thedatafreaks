@@ -21,7 +21,8 @@ Starting from the wikipedia request for adminship votes dataset, we discover tha
     - Are there sub-communities within the larger community, and do these sub-communities exert any influence on the voting outcomes ? <br>
     - Is it possible to observe greater backing from individuals who have similar interests to yours ? <br>
 - How could the wikipedia democratic process be improved ? <br>
-- These are the questions that we will try to answer during our project.
+
+These are the questions that we will try to answer during our project.
 
 
 ## Additional datasets
