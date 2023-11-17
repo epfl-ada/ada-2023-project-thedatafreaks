@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # ada-2023-project-thedatafreaks
 =======
 # A more democratic Wikipedia
@@ -89,4 +88,3 @@ Anne-Laure : Writing data story + proposed ideas
 [Complete Wikipedia edit history](http://snap.stanford.edu/data/wiki-meta.html)<br>
 [Wikipedia Requests for Adminship](http://snap.stanford.edu/data/wiki-RfA.html)<br>
 [Talk pages](https://en.wikipedia.org/wiki/Help:Talk_pages)<br>
->>>>>>> cb83549fb1547b12618bcb5a43f1e0cb2b2c929c
