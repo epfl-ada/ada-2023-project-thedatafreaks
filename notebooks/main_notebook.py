@@ -8,9 +8,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.15.2
 #   kernelspec:
-#     display_name: Python 3 (ipykernel)
+#     display_name: Python [conda env:ada] *
 #     language: python
-#     name: python3
+#     name: conda-env-ada-py
 # ---
 
 # %% [markdown]
@@ -1176,10 +1176,27 @@ fig.suptitle("Difference between observed and mean percentage of votes per commu
 fig.supxlabel("Destination community", size='x-large', fontweight='bold')
 fig.supylabel("Source community", size='x-large', fontweight='bold')
 plt.show()
-        
+
 
 # %% [markdown]
 # We can observe that some communities display either a positive or negative bias in their voting preferences. If votes were at random and participation uniform accross communities, we would have expected that the portion of votes "for", "against" and "neutral" to have to same proportion between communities. Suspicious results could help us to inspect further the relationship between the two communities involved.
+
+# %%
+import gravis as gv
+
+# %%
+G = nx.DiGraph()
+for c in range(len(communities)):
+    G.add_node(c)
+for src in range(len(communities)):
+    for dst in range(len(communities)):
+        if significance_matrix[src][dst][0] < 0.05:
+            diff_for = perc_result_matrix[src][dst][2] - value_perc_vote[1]
+            G.add_edge(src,dst, weight=abs(diff_for))
+            color = "red" if diff_for < 0 else "green"
+            nx.set_edge_attributes(G, {(src,dst):{"color":color}})
+
+gv.vis(G)
 
 # %% [markdown]
 # # Content of edits analysis <a class="anchor" id="edits"></a>
