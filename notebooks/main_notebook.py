@@ -1094,17 +1094,19 @@ perc_result_matrix = np.nan_to_num((vote_result_matrix / nb_result_votes[:,:,np.
 
 # %%
 for_ratio_result_matrix = perc_result_matrix[:,:,2]
-significance_matrix = [[np.zeros(3) for i in range(len(communities))] for j in range(len(communities))]
+significance_matrix = [[[None]*3 for i in range(len(communities))] for j in range(len(communities))]
 for i in range(len(communities)):
     for j in range(len(communities)):
-        significance_matrix[i][j][0] = stats.binom_test(vote_result_matrix[i][j][2], 
-                                                     n=nb_result_votes[i][j], 
-                                                     p=value_perc_vote[1]/100)
+        if int(nb_result_votes[i][j]) != 0:
+            significance_matrix[i][j][0] = stats.binomtest(int(vote_result_matrix[i][j][2]), 
+                                                         n=int(nb_result_votes[i][j]), 
+                                                         p=value_perc_vote[1]/100,
+                                                          )
 plt.figure(figsize=(36, 12))
 sns.heatmap(for_ratio_result_matrix, cmap="Greens", annot=True, fmt=".1f", linewidths=.5, linecolor="black")
 for i in range(len(communities)):
     for j in range(len(communities)):
-        if significance_matrix[i][j][0] < 0.05:
+        if significance_matrix[i][j][0]!=None and significance_matrix[i][j][0].pvalue < 0.01:
             plt.scatter(j+0.85, i+0.35, color='black', marker='*')
 plt.title("Percentage of votes \"for\" per communities in G")
 plt.xlabel("Destination community")
@@ -1115,14 +1117,16 @@ plt.show()
 neutral_ratio_result_matrix = perc_result_matrix[:,:,1]
 for i in range(len(communities)):
     for j in range(len(communities)):
-        significance_matrix[i][j][1] = stats.binom_test(vote_result_matrix[i][j][1], 
-                                                     n=nb_result_votes[i][j], 
-                                                     p=value_perc_vote[0]/100)
+        if int(nb_result_votes[i][j]) != 0:
+            significance_matrix[i][j][1] = stats.binomtest(int(vote_result_matrix[i][j][1]), 
+                                                         n=int(nb_result_votes[i][j]), 
+                                                         p=value_perc_vote[0]/100)
+        
 plt.figure(figsize=(36, 12))
 sns.heatmap(neutral_ratio_result_matrix, cmap="Greys", annot=True, fmt=".1f", linewidths=.5, linecolor="black")
 for i in range(len(communities)):
     for j in range(len(communities)):
-        if significance_matrix[i][j][1] < 0.05:
+        if significance_matrix[i][j][1]!=None and significance_matrix[i][j][1].pvalue < 0.01:
             plt.scatter(j+0.85, i+0.35, color='black', marker='*')
 plt.title("Percentage of votes \"neutral\" per communities in G")
 plt.xlabel("Destination community")
@@ -1133,14 +1137,15 @@ plt.show()
 against_ratio_result_matrix = perc_result_matrix[:,:,0]
 for i in range(len(communities)):
     for j in range(len(communities)):
-        significance_matrix[i][j][2] = stats.binom_test(vote_result_matrix[i][j][0], 
-                                                     n=nb_result_votes[i][j], 
-                                                     p=value_perc_vote[-1]/100)
+        if int(nb_result_votes[i][j]) != 0:
+            significance_matrix[i][j][2] = stats.binomtest(int(vote_result_matrix[i][j][0]), 
+                                                         n=int(nb_result_votes[i][j]), 
+                                                         p=value_perc_vote[-1]/100)
 plt.figure(figsize=(36, 12))
 sns.heatmap(against_ratio_result_matrix, cmap="Reds", annot=True, fmt=".1f", linewidths=.5, linecolor="black")
 for i in range(len(communities)):
     for j in range(len(communities)):
-        if significance_matrix[i][j][2] < 0.05:
+        if significance_matrix[i][j][2]!=None and significance_matrix[i][j][2].pvalue < 0.01:
             plt.scatter(j+0.85, i+0.35, color='black', marker='*')
 plt.title("Percentage of votes \"against\" per communities in G")
 plt.xlabel("Destination community")
@@ -1159,7 +1164,7 @@ for i in range(len(communities)):
         ax[i,j].set_xticks([])
         ax[i,j].set_ylim(-70, 70)
         for k in range(3):
-            if significance_matrix[i][j][k] < 0.05:
+            if significance_matrix[i][j][k]!=None and significance_matrix[i][j][k].pvalue < 0.01:
                 ax[i,j].scatter(x=[k], y=[60], marker='*', color='black')
 
 for i, ax in enumerate(fig.get_axes()):
@@ -1185,18 +1190,37 @@ plt.show()
 import gravis as gv
 
 # %%
+communities_name = ["Pop Culture Mix", "Middle East & Religion", "Varied Interests", "USA Historical Figures", 
+              "Australia", "Religion Debates & Controversies", "Controversial Pop Culture", 
+              "Russia & Eastern Europe", "USA & east Asia mix", "New Zealand", "Military Aircraft", "Youth Pop Culture", 
+              "India & South Asia", "Historical & Political mix", "People Mix", 
+              "USA Varied Interest", "Science", "Historical Figures", 
+              "UK & Ireland", "TV Series 'Lost'", "Sports", "Scientology", 
+              "Canada & Ice Hockey", "Comics", "Balkans & Central Asia", 
+              "Chemical Elements", "Wrestling", "Oregon", "Politics"]
+
+# %%
 G = nx.DiGraph()
-for c in range(len(communities)):
-    G.add_node(c)
+
+for i, c in enumerate(communities):
+    G.add_node(i)
+    G.nodes[i]['size'] = len(c)
+    G.nodes[i]['name'] = communities_name[i]
+pos = nx.circular_layout(G, scale=700)
+for i in range(len(communities)):
+    G.nodes[i]['x'] = pos[i][0]
+    G.nodes[i]['y'] = pos[i][1]
+baseline = value_perc_vote[1]
 for src in range(len(communities)):
     for dst in range(len(communities)):
-        if significance_matrix[src][dst][0] < 0.05:
-            diff_for = perc_result_matrix[src][dst][2] - value_perc_vote[1]
-            G.add_edge(src,dst, weight=abs(diff_for))
-            color = "red" if diff_for < 0 else "green"
+        if significance_matrix[src][dst][0]!=None and significance_matrix[src][dst][0].pvalue < 0.01:
+            ci = significance_matrix[src][dst][0].proportion_ci(confidence_level=0.99)
+            diff_for = ci.low*100 - baseline if ci.low*100 > baseline  else baseline - ci.high*100
+            G.add_edge(src,dst, weight=diff_for)
+            color = "green" if ci.low > 0.7 else "red"
             nx.set_edge_attributes(G, {(src,dst):{"color":color}})
 
-gv.vis(G)
+gv.vis(G,layout_algorithm_active=False, use_node_size_normalization=True, node_size_normalization_max=60, node_size_normalization_min=7, node_hover_neighborhood=True, node_label_size_factor=2.0, node_label_data_source='name', edge_size_data_source='weight', edge_size_factor=0.5)
 
 # %% [markdown]
 # # Content of edits analysis <a class="anchor" id="edits"></a>
