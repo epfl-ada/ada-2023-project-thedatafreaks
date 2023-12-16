@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.15.2
+#       jupytext_version: 1.16.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -44,11 +44,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import gzip
-from itertools import combinations
+from itertools import combinations 
 from scipy.stats import pearsonr
 from statsmodels.stats import diagnostic
 from scipy import stats
 import statsmodels.formula.api as smf
+import plotly.graph_objects as go
+import plotly.express as px
 
 # %% [markdown]
 # # Exploratory Data Analysis <a class="anchor" id="eda"></a>
@@ -79,6 +81,47 @@ df.columns = ['source', 'target', 'vote', 'result', 'year_election', 'date_vote'
 
 # %%
 df
+
+# %%
+# Suppose these are your column names and their descriptions
+data_description = {
+    'Column Name': ['source', 'target', 'vote', 'result', 'year_election', 'date_vote', 'comment'],
+    'Description': [
+        'Voter for the election, identfied by username',
+        'Candidate for the election, identfied by username',
+        'Value of the Vote, 0 : neutral, 1 : support, -1 : oppose',
+        'Result of the election for which vote was cast, 0 : not promoted, 1 : promoted',
+        'Year of the election',
+        'Date when the vote was cast',
+        'Comment associated with the vote'
+    ]
+}
+
+# Convert to DataFrame
+data_description_df = pd.DataFrame(data_description)
+
+# Create a table figure
+fig = go.Figure(data=[go.Table(
+    header=dict(values=list(data_description_df.columns),
+                fill_color='paleturquoise',
+                align='left'),
+    cells=dict(values=[data_description_df['Column Name'], data_description_df['Description']],
+               fill_color='lavender',
+               align='left'))
+])
+
+# Update the figure to adjust its size and reduce white space
+fig.update_layout(
+    width=500,  # Set the width to your preference
+    height=350,  # Set the height to your preference
+    margin=dict(l=10, r=10, t=10, b=40)  # Reduce margins to reduce white space
+)
+
+# Show figure
+fig.show()
+
+#get the html code for the table
+fig.write_html("table.html")
 
 # %% [markdown]
 # ### Preliminary checks <a class="anchor" id="eda_checks"></a>
@@ -366,6 +409,33 @@ ax.set_title('Distribution of the values for year_election', fontsize=16)
 
 plt.show()
 
+# %%
+import pandas as pd
+import plotly.express as px
+
+# Ensure the 'year_election' column is of type integer
+year_elections_cleaned_data['year_election'] = year_elections_cleaned_data['year_election'].astype(str)
+
+# Calculate the value counts and sort by index (year)
+year_election_counts = year_elections_cleaned_data['year_election'].value_counts().sort_index()
+
+# Create the bar chart using Plotly
+fig = px.bar(year_election_counts,
+             labels={'index': 'Year the election took place', 'value': 'Number of occurrences'},
+             title='Distribution of the values for year_election')
+fig.update_layout(xaxis_title='Year the election took place',
+                  yaxis_title='Number of occurrences',
+                  yaxis=dict(gridcolor='LightPink', gridwidth=0.5))
+
+# Show the figure
+fig.show()
+
+
+# %%
+#Compute for each year the proportion of elections in that year over the total number of elections
+year_elections_cleaned_data['year_election'].value_counts(normalize=True).sort_index()
+
+
 # %% [markdown]
 # ##### 5 - Dive into the vote and results values
 #
@@ -388,6 +458,26 @@ ax.set_ylabel('Number of occurrences', fontsize=14)
 ax.set_title('Distribution of the values for the votes', fontsize=16)
 
 plt.show()
+
+# %%
+# Calculate the percentage of each vote value
+vote_counts = vote_results_data_cleaned['vote'].value_counts(normalize=True) * 100
+vote_counts = vote_counts.reset_index()
+vote_counts.columns = ['Vote', 'Percentage']
+
+# Now, create the bar chart using Plotly
+fig = px.bar(vote_counts, x='Vote', y='Percentage',
+             labels={'Percentage': 'Percentage (%)', 'Vote': 'Vote'},
+             title='Percentage Distribution of Vote Values')
+
+# Update layout
+fig.update_layout(showlegend=False,
+                  xaxis_title="Vote",
+                  yaxis_title="Percentage (%)",
+                  yaxis=dict(tickformat=".2f"))  # Format for two decimal places
+
+# To display the plot
+fig.show()
 
 # %%
 value_perc_vote = vote_results_data_cleaned['vote'].value_counts(normalize=True) * 100
@@ -930,41 +1020,59 @@ dataset = []
 # Pre-compute the number of elections each voter has voted in
 num_elections_voted = elect_dynamics_df.groupby('source')['global_election_id'].nunique()
 
-# Iterate over each voter and election without nested loops
-for (voter, election), group in tqdm(elect_dynamics_df.groupby(['source', 'global_election_id'])):
-    # Check vote index condition
-    if group['vote_index_in_election'].iloc[0] >= 2:
-        
-        # Get similar voters : same number of elections voted in and did not vote in the election
-        num_elections_voter = group['number_of_elections_voted'].iloc[0]
-        
-        similar_voters = elect_dynamics_df[
-            (elect_dynamics_df['number_of_elections_voted'] == num_elections_voter) &
-            (elect_dynamics_df['source'] != voter) &
-            (~elect_dynamics_df['global_election_id'].eq(election))
-        ]['source'].unique()
+# Get unique voters
+unique_voters = edges_df['source'].unique()
+total_voters = len(unique_voters)
 
-        if len(similar_voters) > 0:
+# Calculate 10% of total voters for progress updates
+ten_percent_voters = total_voters // 10
 
-            #Choose a random voter from the similar voters
-            similar_voter = np.random.choice(similar_voters)
+#We iterate over all the voter in the graph
+for index, voter in tqdm(enumerate(unique_voters)): 
 
-            #Get the number of contacts from the voter who voted before the voter
+    # Progress update every 10%
+    if index % ten_percent_voters == 0:
+        print(f"Processed {index / total_voters * 100:.0f}% of voters")
 
-            number_contacts_voter_voted_before = get_number_of_contacts(voter, election, elect_dynamics_df, edges_df)
-            number_contacts_similar_voter_voted_before = get_number_of_contacts(similar_voter, election, elect_dynamics_df, edges_df)
+    #We iterate over all the elections the voter has voted in
+    voter_elections = elect_dynamics_df[elect_dynamics_df['source'] == voter]['global_election_id'].unique()
+    for election in voter_elections: 
+        #Check if the voter has vote_index_in_election > 2 
+        if elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['vote_index_in_election'].values[0] > 2:
+            #We compute the number of elections the voter has voted in
+            number_of_elections_voted = num_elections_voted[voter]
 
-            dataset.append({'voter': voter,
-                            'voted': 1,
-                            'number_of_contacts_voter': number_contacts_voter_voted_before - number_contacts_similar_voter_voted_before, 
-                            'number_interactions_voter_candidate': get_number_interactions(voter, group['target'].values[0], edges_df),
+            similar_voters = elect_dynamics_df[
+                (elect_dynamics_df['number_of_elections_voted'] == number_of_elections_voted) &
+                (elect_dynamics_df['source'] != voter) &
+                (~elect_dynamics_df['global_election_id'].eq(election)) 
+            ]['source'].unique()
+           
+            if len(similar_voters) > 0:
+                #Choose a random voter from the similar voters
+                similar_voter = np.random.choice(similar_voters)
 
-                            })
-            dataset.append({'voter': similar_voter,
-                            'voted': 0,
-                            'number_of_contacts_voter': number_contacts_similar_voter_voted_before - number_contacts_voter_voted_before , 
-                            'number_interactions_voter_candidate': get_number_interactions(similar_voter, group['target'].values[0], edges_df)
-                            })
+                #Get the number of contacts from the voter who voted before the voter
+                number_contacts_voter_voted_before = get_number_of_contacts(voter, election, elect_dynamics_df, edges_df)
+                number_contacts_similar_voter_voted_before = get_number_of_contacts(similar_voter, election, elect_dynamics_df, edges_df)
+
+                #Get the target of the election
+                target = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['target'].values[0]
+
+                dataset.append({
+                    'voter': voter,
+                    'voted': 1,
+                    'number_of_contacts_voter': number_contacts_voter_voted_before - number_contacts_similar_voter_voted_before, 
+                    'number_interactions_voter_candidate': get_number_interactions(voter, target, edges_df)
+                })
+                dataset.append({
+                    'voter': similar_voter,
+                    'voted': 0,
+                    'number_of_contacts_voter': number_contacts_similar_voter_voted_before - number_contacts_voter_voted_before, 
+                    'number_interactions_voter_candidate': get_number_interactions(similar_voter, target, edges_df)
+                })
+
+
 
 
 # %%
