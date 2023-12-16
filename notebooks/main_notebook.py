@@ -8,9 +8,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.15.2
 #   kernelspec:
-#     display_name: Python [conda env:ada] *
+#     display_name: Python 3 (ipykernel)
 #     language: python
-#     name: conda-env-ada-py
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -588,12 +588,15 @@ def assign_election_ids(row):
 elect_dynamics_df['global_election_id'] = elect_dynamics_df.apply(assign_election_ids, axis=1)
 
 # %%
-elect_dynamics_df
+#Add a column corresponding the the index of the vote in the election
+elect_dynamics_df['vote_index_in_election'] = elect_dynamics_df.groupby(['target', 'global_election_id']).cumcount() + 1
 
+# %%
+elect_dynamics_df
 
 # %%
 #We compute here different statistics
-elect_dynamics_df = elect_dynamics_df.groupby(['global_election_id']).apply(lambda x : pd.Series({
+elect_features_df = elect_dynamics_df.groupby(['global_election_id']).apply(lambda x : pd.Series({
     'number_of_votes' : len(x['source']), 
     'ratio_positive_votes' : x[x.vote == 1]['vote'].sum() / len(x.source), 
     'ratio_neutral_votes' : x[x.vote == 0]['vote'].sum() / len(x.source),
@@ -601,18 +604,25 @@ elect_dynamics_df = elect_dynamics_df.groupby(['global_election_id']).apply(lamb
     'date_last_vote' : x['date_vote'].max(),
     'result' : x['result'].max(),
     'year_election' : x['year_election'].max(),
+    'target' : x['target'].unique(),
+    'list_of_voters_index_vote ' : x['source'].unique(),
+    
 })).reset_index()
-elect_dynamics_df
+
+elect_features_df
 
 # %%
-plt.figure(figsize=(15, 10))  
+plt.figure(figsize=(15, 10)) 
+
+custom_palette = {1: "green", -1: "red"}
 
 sns.scatterplot(x='date_last_vote',
              y='ratio_positive_votes', 
              hue='result', 
              style='result', 
-             data=elect_dynamics_df,
-             palette='Set2') 
+             data=elect_features_df,
+             palette= custom_palette,
+             alpha = 0.7) 
 
 plt.title('Trends in Ratio of Positive Votes by Election Outcome Over Time', fontsize=18)
 plt.xlabel('Date of Vote', fontsize=16)
@@ -637,8 +647,8 @@ sns.scatterplot(x='date_last_vote',
              y='number_of_votes', 
              hue='result', 
              style='result', 
-             data=elect_dynamics_df,
-             palette='Set2', 
+             data=elect_features_df,
+             palette= custom_palette, 
              alpha = 0.6) 
 
 plt.title('Trends in Ratio of Number of votes by Election Outcome Over Time', fontsize=18)
@@ -658,14 +668,14 @@ plt.show()
 
 # %%
 #We compute the correlation between the ratio of positive votes and the outcome of the election
-stats.pearsonr(elect_dynamics_df['ratio_positive_votes'], elect_dynamics_df['result'])
+stats.pearsonr(elect_features_df['ratio_positive_votes'], elect_features_df['result'])
 
 # %%
 #We compute the correlation between the number of votes and the outcome of the election
-stats.pearsonr(elect_dynamics_df['number_of_votes'], elect_dynamics_df['result'])
+stats.pearsonr(elect_features_df['number_of_votes'], elect_features_df['result'])
 
 # %%
-regression_df = elect_dynamics_df.copy(deep=True)
+regression_df = elect_features_df.copy(deep=True)
 regression_df['result'] = regression_df['result'].replace({-1 : 0})
 mod = smf.logit(formula='result ~  (year_election) + number_of_votes + ratio_positive_votes + \
                           + ratio_positive_votes + average_comment_length' , data=regression_df)
@@ -689,11 +699,11 @@ print(res.summary())
 # ### Number of votes analysis <a class="anchor" id="eda_analysis"></a>
 
 # %%
-elect_dynamics_df['year_election'].unique().sort()
+elect_features_df['year_election'].unique().sort()
 
 # %%
 #Plot the distribution of the number of elections per year
-ax = elect_dynamics_df['year_election'].value_counts().sort_index().plot(kind='bar' , 
+ax = elect_features_df['year_election'].value_counts().sort_index().plot(kind='bar' , 
                                                                          color='teal', edgecolor='black')
 
 plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -708,8 +718,8 @@ plt.show()
 
 # %%
 # Assuming 'election_year' is of type int
-for year in sorted(elect_dynamics_df['year_election'].unique()):
-    data_subset = elect_dynamics_df[elect_dynamics_df['year_election'] == year]
+for year in sorted(elect_features_df['year_election'].unique()):
+    data_subset = elect_features_df[elect_features_df['year_election'] == year]
     
     sns.histplot(x='number_of_votes', data=data_subset, hue='result', log_scale=(False, False), 
                  color = 'skyblue', edgecolor='black' , palette= 'Set2')
@@ -717,7 +727,7 @@ for year in sorted(elect_dynamics_df['year_election'].unique()):
     plt.show()
 
 # %%
-sns.histplot(x = 'number_of_votes', data = elect_dynamics_df , hue = 'result', log_scale= (True, False))
+sns.histplot(x = 'number_of_votes', data = elect_features_df , hue = 'result', log_scale= (True, False))
 plt.show()
 
 # %%
@@ -846,30 +856,30 @@ plt.show()
 # The increasing trend in the ratio of voters plateaus, which may imply that beyond a certain point, increasing the threshold for interaction weight does not significantly influence the likelihood of users participating in each other's votes. It can be inferred that there might be a saturation point beyond which the strength of interaction (as quantified by weight) does not have much additional impact on voting participation.
 
 # %%
-effect_comm_df = interactions_df.groupby('interaction_count').apply(lambda x : pd.Series({
-    'percentage_positive_votes' : x[x.vote == 1]['vote'].sum() / len(x.source), 
-    'number_of_votes' : len(x.source),
-    'proportion_of_voters' : len(x.source)/len(df['source'].unique())
-})).reset_index()
+interaction_df_plot = interactions_df.copy()
+interaction_df_plot.loc[interactions_df['vote'] != 1, 'vote'] = 0
 
-effect_comm_df = effect_comm_df[effect_comm_df['number_of_votes'] >= 25]
+interaction_count_counts = interaction_df_plot['interaction_count'].value_counts()
+interaction_df_plot['count_per_interaction'] = interaction_df_plot['interaction_count'].map(interaction_count_counts)
+filtered_df = interaction_df_plot[interaction_df_plot['count_per_interaction'] >= 30].copy()
 
 plt.figure(figsize=(15, 10))
 ax = sns.lineplot(x='interaction_count',
-                  y='percentage_positive_votes',
-                  data=effect_comm_df,
+                  y='vote',
+                  data=filtered_df,
                   color='teal',
                   marker='o',
                   markersize=10,
                   markerfacecolor='skyblue',
                   markeredgecolor='black',
-                  markeredgewidth=1)
+                  markeredgewidth=1,
+                  errorbar='ci')
 
 ax.set_title('Percentage of Positive Votes by Number of Interactions', fontsize=20, pad=20)
 ax.set_xlabel('Number of Interactions', fontsize=15)
 ax.set_ylabel('Percentage of Positive Votes', fontsize=15)
 ax.grid(True)  
-ax.set_xticks(effect_comm_df['interaction_count']) 
+ax.set_xticks(filtered_df['interaction_count'].unique()) 
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
 
@@ -877,6 +887,119 @@ plt.show()
 
 # %% [markdown]
 # Despite the variability, there seems to be a general trend where the percentage of positive votes tends to increase with the number of interactions, especially noticeable in the initial section of the plot. However, this trend is not consistent across the entire range of interaction counts.
+
+# %% [markdown]
+# Here we will implement the logistic regression to analyse the factors that motivate participation following the method described in 1. 
+
+# %%
+#We compute for each voter the number of election he voted for, using elect_dynamics_df
+elect_dynamics_df['number_of_elections_voted'] = elect_dynamics_df.groupby('source')['global_election_id'].transform('nunique')
+
+elect_dynamics_df
+
+
+# %%
+def get_number_of_contacts(voter, election, df, edges_df):
+    list_contacts_voters = edges_df[edges_df['source'] == voter]['target'].values
+    voter_vote_index = df[(df['source'] == voter) & (df['global_election_id'] == election)]['vote_index_in_election']
+    
+    if voter_vote_index.empty:
+        number_of_contacts = 0
+    else:
+        number_of_contacts = df[(df['source'].isin(list_contacts_voters)) & 
+                                (df['global_election_id'] == election) & 
+                                (df['vote_index_in_election'] < voter_vote_index.values[0])
+                               ]['source'].nunique()
+
+    return number_of_contacts
+
+
+# %%
+def get_number_interactions (voter, target , edges_df) : 
+    #check wether the voter and the target have interacted before
+    if edges_df[(edges_df['source'] == voter ) & (edges_df['target'] == target)].empty : 
+        return 0
+    else : 
+        return edges_df[(edges_df['source'] == voter) & (edges_df['target'] == target)]['weight'].values[0]
+
+
+# %%
+from tqdm import tqdm
+dataset = []
+
+# Pre-compute the number of elections each voter has voted in
+num_elections_voted = elect_dynamics_df.groupby('source')['global_election_id'].nunique()
+
+# Iterate over each voter and election without nested loops
+for (voter, election), group in tqdm(elect_dynamics_df.groupby(['source', 'global_election_id'])):
+    # Check vote index condition
+    if group['vote_index_in_election'].iloc[0] >= 2:
+        
+        # Get similar voters : same number of elections voted in and did not vote in the election
+        num_elections_voter = group['number_of_elections_voted'].iloc[0]
+        
+        similar_voters = elect_dynamics_df[
+            (elect_dynamics_df['number_of_elections_voted'] == num_elections_voter) &
+            (elect_dynamics_df['source'] != voter) &
+            (~elect_dynamics_df['global_election_id'].eq(election))
+        ]['source'].unique()
+
+        if len(similar_voters) > 0:
+
+            #Choose a random voter from the similar voters
+            similar_voter = np.random.choice(similar_voters)
+
+            #Get the number of contacts from the voter who voted before the voter
+
+            number_contacts_voter_voted_before = get_number_of_contacts(voter, election, elect_dynamics_df, edges_df)
+            number_contacts_similar_voter_voted_before = get_number_of_contacts(similar_voter, election, elect_dynamics_df, edges_df)
+
+            dataset.append({'voter': voter,
+                            'voted': 1,
+                            'number_of_contacts_voter': number_contacts_voter_voted_before - number_contacts_similar_voter_voted_before, 
+                            'number_interactions_voter_candidate': get_number_interactions(voter, group['target'].values[0], edges_df),
+
+                            })
+            dataset.append({'voter': similar_voter,
+                            'voted': 0,
+                            'number_of_contacts_voter': number_contacts_similar_voter_voted_before - number_contacts_voter_voted_before , 
+                            'number_interactions_voter_candidate': get_number_interactions(similar_voter, group['target'].values[0], edges_df)
+                            })
+
+
+# %%
+#create a dataframe from the list of dictionaries
+dataset_df = pd.DataFrame(dataset)
+dataset_df
+
+# %%
+#Run a logistic regression on the dataset
+mod = smf.logit(formula='voted ~ number_of_contacts_voter + number_interactions_voter_candidate', data=dataset_df)
+res = mod.fit()
+print(res.summary())
+
+
+# %%
+#Plot the distribution of the number of contacts per voter
+plt.figure(figsize=(15, 10))
+
+ax = sns.histplot(dataset_df['number_interactions_voter_candidate'], color='teal', log=True, bins=1000, edgecolor='black')
+
+ax.set_title('Distribution of Number of Contacts', fontsize=16)
+ax.set_xlabel('Number of Contacts', fontsize=14)
+ax.set_ylabel('Frequency (Log Scale)', fontsize=14)
+
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(fontsize=12)
+
+plt.grid(True, which="both", ls="--", linewidth=0.5)
+
+plt.show()
+
+# %%
+voters = analysis_df.groupby('source').apply(lambda x : pd.Series({
+    'number_of_votes' : len(x['target'])})).reset_index()
+voters[voters.source == 'Blnguyen']
 
 # %% [markdown]
 # To have a better understanding of the interactions, we plot them in a graph. We also plot the degree rank plot and histogram. The degree of a node is the number of edges adjacents to the node. This plot helps us to better understand the distribution of the number of adjacent nodes. We can see that most of the nodes have a low degree.
@@ -1088,7 +1211,6 @@ for index, row in df.iterrows():
             vote_result_matrix[i_src][i_dst][1] += 1
         nb_result_votes[i_src][i_dst] += 1
 
-
 # %%
 perc_result_matrix = np.nan_to_num((vote_result_matrix / nb_result_votes[:,:,np.newaxis]))*100
 
@@ -1182,7 +1304,6 @@ fig.supxlabel("Destination community", size='x-large', fontweight='bold')
 fig.supylabel("Source community", size='x-large', fontweight='bold')
 plt.show()
 
-
 # %% [markdown]
 # We can observe that some communities display either a positive or negative bias in their voting preferences. If votes were at random and participation uniform accross communities, we would have expected that the portion of votes "for", "against" and "neutral" to have to same proportion between communities. Suspicious results could help us to inspect further the relationship between the two communities involved.
 
@@ -1220,7 +1341,7 @@ for src in range(len(communities)):
             color = "green" if ci.low > 0.7 else "red"
             nx.set_edge_attributes(G, {(src,dst):{"color":color}})
 
-gv.vis(G,layout_algorithm_active=False, use_node_size_normalization=True, node_size_normalization_max=60, node_size_normalization_min=7, node_hover_neighborhood=True, node_label_size_factor=2.0, node_label_data_source='name', edge_size_data_source='weight', edge_size_factor=0.5)
+gv.vis(G, show_menu_toggle_button = False, show_details_toggle_button = False, layout_algorithm_active=False, use_node_size_normalization=True, node_size_normalization_max=60, node_size_normalization_min=7, node_hover_neighborhood=True, node_label_size_factor=2.0, node_label_data_source='name', edge_size_data_source='weight', edge_size_factor=0.5)
 
 # %% [markdown]
 # # Content of edits analysis <a class="anchor" id="edits"></a>
