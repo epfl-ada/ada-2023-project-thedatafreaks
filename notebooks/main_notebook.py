@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.0
+#       jupytext_version: 1.15.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -420,16 +420,20 @@ year_elections_cleaned_data['year_election'] = year_elections_cleaned_data['year
 year_election_counts = year_elections_cleaned_data['year_election'].value_counts().sort_index()
 
 # Create the bar chart using Plotly
-fig = px.bar(year_election_counts,
-             labels={'index': 'Year the election took place', 'value': 'Number of occurrences'},
-             title='Distribution of the values for year_election')
+fig = px.bar(x=year_election_counts.index, y=year_election_counts.values,
+             labels={'x': 'Year', 'y': 'Number of votes'},
+             title='Votes per year')
 fig.update_layout(xaxis_title='Year the election took place',
                   yaxis_title='Number of occurrences',
-                  yaxis=dict(gridcolor='LightPink', gridwidth=0.5))
+                  yaxis=dict(gridcolor='LightPink', gridwidth=0.5),
+                 title_x=0.5)
 
 # Show the figure
 fig.show()
 
+
+# %%
+fig.write_html("year_votes.html")
 
 # %%
 #Compute for each year the proportion of elections in that year over the total number of elections
@@ -468,16 +472,21 @@ vote_counts.columns = ['Vote', 'Percentage']
 # Now, create the bar chart using Plotly
 fig = px.bar(vote_counts, x='Vote', y='Percentage',
              labels={'Percentage': 'Percentage (%)', 'Vote': 'Vote'},
-             title='Percentage Distribution of Vote Values')
+             title='Distribution of vote values')
 
 # Update layout
 fig.update_layout(showlegend=False,
                   xaxis_title="Vote",
                   yaxis_title="Percentage (%)",
-                  yaxis=dict(tickformat=".2f"))  # Format for two decimal places
+                  yaxis=dict(tickformat=".2f"),
+                  xaxis=dict(tickvals=[-1,0,1],ticktext=["Against", "Neutral", "For"]),
+                 title_x=0.5)  # Format for two decimal places
 
 # To display the plot
 fig.show()
+
+# %%
+fig.write_html("vote_distrib.html")
 
 # %%
 value_perc_vote = vote_results_data_cleaned['vote'].value_counts(normalize=True) * 100
@@ -507,6 +516,23 @@ value_perc_result = vote_results_data_cleaned['result'].value_counts(normalize=T
 # Print the percentages
 print("Percentage of Each Unique Value in result:")
 print(value_perc_result)
+
+# %%
+results = vote_results_data_cleaned['result'].value_counts().sort_index()
+percentage = ["{:.2f}%".format(x) for x in value_perc_result.sort_index().values]
+fig = px.bar(x=results.index, y=results.values,
+            labels={'x':'Election outcome', 'y':'Number of occurences'},
+            title="Election outcomes",
+            hover_data={"Percentage":percentage})
+fig.update_layout(xaxis_title="Election outcome",
+                  yaxis_title="Number of occurences",
+                  title_x=0.5,
+                   xaxis=dict(tickvals=[-1,1],ticktext=["Rejected", "Elected"])
+                 )
+fig.write_html("election_outcome.html")
+fig.show()
+
+# %%
 
 # %% [markdown]
 # ##### 6 - Dive into comments
@@ -562,6 +588,22 @@ ax.grid(True)
 plt.xticks(rotation=45)  
 plt.tight_layout()  
 plt.show()
+
+# %%
+hist = grouped_per_user['number_of_votes'].value_counts()
+fig = px.histogram(x=hist.index, y=hist.values,
+                   log_y=True, nbins=1000,
+                  title="Distribution of number of votes",
+                  labels={'y':"Nb of users", 'x':" of votes"})
+fig.update_layout(title_x=0.5,
+                  yaxis_title=' (Log Scale)',
+                  xaxis_title='Number of Votes',
+                 )
+fig.write_html("election_distribution.html")
+fig.show()
+
+# %%
+grouped_per_user['number_of_votes'].value_counts()
 
 # %% [markdown]
 # We can see a classic long-tail distribution of voter activity, indicative of a pattern where a small number of individuals account for a disproportionately large number of votes, while the vast majority participate minimally. The steep decline and subsequent long tail to the right suggest that the community has a few highly engaged users, a common trait in voluntary, community-driven platforms. This could imply that engagement initiatives might focus on the more active users to leverage their influence, or conversely, on the less active majority to increase overall participation.
@@ -1231,6 +1273,14 @@ for index, row in df.iterrows():
         nb_community_votes[i_src] += 1
 
 # %%
+fig, ax = plt.subplots(figsize=(10,10*len(communities)), nrows=len(communities), ncols=2)
+for i in range(len(communities)):
+    ax[i,0].set_title(f"vote recv by community {i}")
+    ax[i,0].pie(vote_count_matrix[i,:], labels=list(range(len(communities)))) 
+    ax[i,1].set_title(f"votes given by community {i}")
+    ax[i,1].pie(vote_count_matrix[:,i],labels=list(range(len(communities))))  
+
+# %%
 # We verify our computations and transform the vote count matrix into a ratio matrix
 np.testing.assert_array_equal(vote_count_matrix.sum(axis=1), nb_community_votes)
 ratio_vote_count_matrix = (vote_count_matrix / nb_community_votes[:, np.newaxis])*100 
@@ -1283,13 +1333,29 @@ for index, row in df.iterrows():
 gain_vote_expected_matrix = np.nan_to_num(nb_result_votes / ratio_vote_expected_matrix)
 
 # %%
+communities_name = ["Pop Culture Mix", "Middle East & Religion", "Varied Interests", "USA Historical Figures", 
+              "Australia", "Religion Debates & Controversies", "Controversial Pop Culture", 
+              "Russia & Eastern Europe", "USA & east Asia mix", "New Zealand", "Military Aircraft", "Youth Pop Culture", 
+              "India & South Asia", "Historical & Political mix", "People Mix", 
+              "USA Varied Interest", "Science", "Historical Figures", 
+              "UK & Ireland", "TV Series 'Lost'", "Sports", "Scientology", 
+              "Canada & Ice Hockey", "Comics", "Balkans & Central Asia", 
+              "Chemical Elements", "Wrestling", "Oregon", "Politics"]
+
+# %%
+np.arange(0,29,1)
+
+# %%
 # Heatmap of the gain from expected votes across communities
 # Couleurs sympas: 'PuBuGn', 'RdYlBu', 'coolwarm'
 plt.figure(figsize=(36, 12))
 sns.heatmap(gain_vote_expected_matrix, cmap='PuBuGn', annot=True, fmt=".2f", linewidths=.5, linecolor="black")
-plt.title("Multiplicative relation expected number of votes to observed number of votes per communities in G")
-plt.xlabel("Destination community")
-plt.ylabel("Source community")
+plt.title("Ratio of observed number of votes to expected number of votes", size=15, fontweight='bold', y=1.02)
+plt.xlabel("Destination community", size=15, fontweight='bold')
+plt.ylabel("Source community", size=15, fontweight='bold')
+plt.xticks(ticks=np.arange(0.5, 29.5, 1),labels=communities_name, rotation=40, ha='right')
+plt.yticks(ticks=np.arange(0.5, 29.5, 1), labels=communities_name, rotation='horizontal')
+plt.savefig("shades_of_blue.png")
 plt.show()
 
 # %% [markdown]
@@ -1419,14 +1485,6 @@ plt.show()
 import gravis as gv
 
 # %%
-communities_name = ["Pop Culture Mix", "Middle East & Religion", "Varied Interests", "USA Historical Figures", 
-              "Australia", "Religion Debates & Controversies", "Controversial Pop Culture", 
-              "Russia & Eastern Europe", "USA & east Asia mix", "New Zealand", "Military Aircraft", "Youth Pop Culture", 
-              "India & South Asia", "Historical & Political mix", "People Mix", 
-              "USA Varied Interest", "Science", "Historical Figures", 
-              "UK & Ireland", "TV Series 'Lost'", "Sports", "Scientology", 
-              "Canada & Ice Hockey", "Comics", "Balkans & Central Asia", 
-              "Chemical Elements", "Wrestling", "Oregon", "Politics"]
 
 # %%
 G = nx.DiGraph()
