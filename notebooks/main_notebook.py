@@ -1665,4 +1665,60 @@ for count, community in enumerate(communities):
     print(f"\nCommunity {count}:")            
     print(data.sort_values('count', ascending = False).head(20))
 
+# %% [markdown]
+# ### Fake accounts or bots
+
 # %%
+edits_df
+
+# %%
+user_edits_count = edits_df.groupby('username')['counts'].sum().reset_index()
+user_edits_count
+
+# %%
+df_clean = df[df['source'] != '']
+df_clean
+
+# %%
+nb_votes = df_clean.groupby(['source'])[['target']].count().rename(columns={'target': 'nb_votes'})
+nb_votes
+
+# %%
+votes_and_edits = nb_votes.merge(user_edits_count, how='left', left_index=True, right_on='username').reset_index().fillna(0)[['username', 'counts', 'nb_votes']]
+votes_and_edits.rename(columns={'counts': 'edits_count'}, inplace=True)
+votes_and_edits
+
+# %%
+#Run a logistic regression on the dataset
+mod = smf.ols(formula='nb_votes ~ edits_count', data=votes_and_edits)
+res = mod.fit()
+print(res.summary())
+
+# %%
+no_edits = votes_and_edits[votes_and_edits['edits_count'] == 0]
+no_edits
+
+# %%
+df_clean[df_clean['source'].str.contains('bot')]['source'].unique()
+
+
+# %%
+suspects = no_edits[no_edits['nb_votes'] == 1]['username'].unique()
+
+# %%
+df_with_suspects = df_clean[df_clean['source'].isin(suspects)]
+df_with_suspects
+
+# %%
+suspects_by_election = df_with_suspects.groupby(['target', 'year_election', 'result'])[['source']].count().sort_values('source')
+suspects_by_election
+
+# %%
+suspects_by_election['percentage'] = suspects_by_election.apply(lambda r: r['source'] / len(df_clean[df_clean['target'] == r.name[0]]), axis=1)
+suspects_by_election
+
+# %%
+suspects_by_election[(suspects_by_election.index.get_level_values(1).astype(int) > 2005) & (suspects_by_election.index.get_level_values(2) == '1')].sort_values('percentage', ascending=False)[:35]
+
+# %%
+df_with_suspects[(df_with_suspects['target'] == 'Qwyrxian') & (df_with_suspects['source'].isin(suspects))]
