@@ -1,10 +1,10 @@
-# BOB’s journey to adminship: Exploring the world of Wikipedia Requests for Adminship
+# Bob’s journey to adminship: Exploring the world of Wikipedia Requests for Adminship
 
 *TheDataFreaks: Robin Jaccard, Jeremy Di Dio, Daniel Tavares, Anne-Laure Tettoni, Romain Berquet*
 
 ## Datastory
 
-Embark on a captivating exploration of Bob's journey towards admission by following the link to our insightful data narrative: [Datastory](dioday45.github.io/TheDataFreaks/).
+Embark on a captivating exploration of Bob's journey towards admission by following the link to our insightful [data narrative].(dioday45.github.io/TheDataFreaks/).
 
 ## Abstract
 
@@ -94,8 +94,6 @@ Here is an overview of the codebase:
 └── scripts
     ├── user_edit_interactions.py
     └── user_talk_interactions.py
-
-
 ```
 
 ## Organization within the team
