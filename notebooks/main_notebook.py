@@ -430,11 +430,9 @@ fig.update_layout(xaxis_title='Year the election took place',
 # Show the figure
 fig.show()
 
-
 # %%
 #Compute for each year the proportion of elections in that year over the total number of elections
 year_elections_cleaned_data['year_election'].value_counts(normalize=True).sort_index()
-
 
 # %% [markdown]
 # ##### 5 - Dive into the vote and results values
@@ -465,6 +463,8 @@ vote_counts = vote_results_data_cleaned['vote'].value_counts(normalize=True) * 1
 vote_counts = vote_counts.reset_index()
 vote_counts.columns = ['Vote', 'Percentage']
 
+vote_counts['Vote'] = vote_counts['Vote'].astype(str)
+
 # Now, create the bar chart using Plotly
 fig = px.bar(vote_counts, x='Vote', y='Percentage',
              labels={'Percentage': 'Percentage (%)', 'Vote': 'Vote'},
@@ -478,6 +478,9 @@ fig.update_layout(showlegend=False,
 
 # To display the plot
 fig.show()
+
+#Save to html
+fig.write_html("vote_percentage.html")
 
 # %%
 value_perc_vote = vote_results_data_cleaned['vote'].value_counts(normalize=True) * 100
@@ -563,6 +566,10 @@ plt.xticks(rotation=45)
 plt.tight_layout()  
 plt.show()
 
+# %%
+#Descrptive statistics for the number of votes per user
+grouped_per_user['number_of_votes'].describe()
+
 # %% [markdown]
 # We can see a classic long-tail distribution of voter activity, indicative of a pattern where a small number of individuals account for a disproportionately large number of votes, while the vast majority participate minimally. The steep decline and subsequent long tail to the right suggest that the community has a few highly engaged users, a common trait in voluntary, community-driven platforms. This could imply that engagement initiatives might focus on the more active users to leverage their influence, or conversely, on the less active majority to increase overall participation.
 
@@ -589,63 +596,30 @@ ax.grid(True, which="both", ls="--", linewidth=0.5)
 
 plt.show()
 
-
 # %% [markdown]
 # The histogram depicting the duration between users' first and last votes confirms the conclusion form the previous plot : most users engage in a short burst of activity, casting votes for a brief period before becoming inactive, as shown by the numerous tall bars at the plot's start. This trend aligns with the initial surge of participation seen in the previous plot, where many users voted only a few times. Conversely, the long tail in both plots points to a subset of dedicated users who not only vote more frequently but also stay active over long stretches, suggesting a core group's persistent engagement shapes the platform's voting landscape. Together, these insights reveal a pattern of engagement where a small cohort of users provides ponctual votes and others who have a really important impact.
 
 # %%
-#Now to get an inuition about the average number of election that a user runs for
-#As we know that an RfA is on average 7 days, we will set this specific time lapse as the duration of an election
-
-def estimate_number_of_elections(group):
-    # Ensure the dates are sorted
-    sorted_dates = group.sort_values()
-    
-    # Initialize the count of elections and set the first election start date
-    elections_count = 1
-    election_start = sorted_dates.iloc[0]
-
-    for date in sorted_dates[1:]:
-        # If the current vote is more than a week after the election start, count a new election
-        if (date - election_start).days > 7:
-            elections_count += 1
-            election_start = date
-
-    return elections_count
-
-estimated_number_elections_per_user = (analysis_df.groupby('target')['date_vote']
-                                                  .apply(estimate_number_of_elections)
-                                                  .reset_index()
-                                                  .rename(columns={'date_vote': 'estimated_number_elections'}))
-
-#We look at the distribution of values for the estimated number of elections
-print(estimated_number_elections_per_user.describe())
-
-#We look at the distribution of values for the estimated number of elections
-sns.histplot(estimated_number_elections_per_user.estimated_number_elections, bins=30, kde=False, 
-             color='skyblue', log = True)
-plt.title('Distribution of Estimated Number of Elections Per Target')
-plt.xlabel('Estimated Number of Elections')
-plt.ylabel('Count')
-plt.show()
-
-# %% [markdown]
-# The histogram and descriptive statistics indicate that the majority of targets in the dataset are estimated to have run for just one election, which is consistent with the data's mean and mode both being close to 1. The significant drop-off after one election suggests that it is much less common for targets to run multiple times. With over 75% of the targets estimated to have participated in only one election, there's a clear indication that repeated runs for election are rare. This aligns with the earlier plots showing that while there are a few highly active and engaged individuals, the vast majority have lower levels of activity. In this context, the repeated candidacies could be attributed to a similarly small group of individuals who are highly involved in the community, repeatedly seeking election, reflecting a pattern of engagement where a core group of users is significantly more active than the rest.
+#Descriptive statistics for the duration of the sequence of votes
+date_analysis['duration'].dt.days.describe()
 
 # %%
-# Get the users who ran for election only once
-ran_once = (estimated_number_elections_per_user[estimated_number_elections_per_user
-                                                .estimated_number_elections == 1])
+date_analysis
 
-# Get the users who ran for election only once and did not get elected
-not_elected_once = ran_once[~ran_once.target.isin(analysis_df[analysis_df.result == 1].target)]
 
-number_unique_people_running = analysis_df.target.nunique()
-ratio_give_up_after_one = len(not_elected_once)/number_unique_people_running
-print(f'The proportion of users that give up after one election is {ratio_give_up_after_one:.2%}%')
+# %%
+#We look at now the distribution of the number of days between two votes for each user
+def calculation_average_time_between_votes (dates) : 
+    sorted_dates = sorted(dates)
+    #check division by 0
 
-# %% [markdown]
-# The statistic that 39% of voters do not participate in subsequent elections if they don't succeed in their first attempt is indicative of a high dropout rate, potentially reflecting various underlying factors. This rate suggests a significant level of voter apathy or disillusionment, possibly arising from a perception that their vote lacks impact or from a general lack of sustained motivation. This statistic also poses questions about the evolving nature of voter engagement and the effectiveness of current electoral systems in sustaining voter interest and belief in the electoral process.
+    return (sorted_dates[-1] - sorted_dates[0])/(len(sorted_dates))
+
+date_analysis['time_between_votes'] = date_analysis['sequence_of_votes'].apply(calculation_average_time_between_votes)
+
+date_analysis['time_between_votes'] = date_analysis['time_between_votes'].apply(lambda x : x.days)
+
+date_analysis['time_between_votes'].describe()
 
 # %% [markdown]
 # ##### 2 - Election dynamics
@@ -683,6 +657,57 @@ elect_dynamics_df['vote_index_in_election'] = elect_dynamics_df.groupby(['target
 
 # %%
 elect_dynamics_df
+
+
+# %%
+def get_unique_result(target):
+    result = elect_dynamics_df[elect_dynamics_df['target'] == target]['result'].unique()
+    return result[0] if len(result) > 0 else None
+
+
+# %%
+number_elections_per_user = (elect_dynamics_df.groupby('target')['global_election_id']
+                                                  .apply(lambda x : len(x.unique()))
+                                                  .reset_index()
+                                                  .rename(columns={'global_election_id': 'number_elections'}))
+                                                  
+only_one_elections_targets = number_elections_per_user[number_elections_per_user.number_elections == 1]['target'].unique()
+only_one_election = number_elections_per_user[number_elections_per_user.target.isin(only_one_elections_targets)]
+
+only_one_election['result'] = only_one_election['target'].apply(get_unique_result)
+
+# %%
+percentage_one = len(only_one_election[only_one_election.result == -1 ]) / len(number_elections_per_user)
+percentage_one
+
+print(f"The percentage of users with only one election and a negative result is {percentage_one:.2%}")
+
+# %%
+#Compute the number of elections per user before success 
+#We first filter the dataframe to only keep the targets with at least one successful election
+
+targets_with_success = elect_dynamics_df[elect_dynamics_df['result'] == 1].target.unique()
+elections_with_success = elect_dynamics_df[elect_dynamics_df['target'].isin(targets_with_success)]
+
+#We then compute the number of elections per user before success
+number_elections_before_success_df = (elections_with_success.groupby('target')['global_election_id']
+                                                  .apply(lambda x : len(x.unique()))
+                                                  .reset_index()
+                                                  .rename(columns={'global_election_id': 'number_elections_before_success'}))
+
+# %%
+fig = px.histogram(number_elections_before_success_df, 
+                   x='number_elections_before_success', 
+                   nbins=30,
+                   color_discrete_sequence=['skyblue'],
+                   title='Percentage distribution of Estimated Number of Elections Per Target',
+                   histnorm='percent')
+fig.update_traces(marker_line_color='black', marker_line_width=1.5)
+fig.update_layout(xaxis_title='Estimated Number of Elections', yaxis_title='Percentage')
+fig.show()
+
+#Save to html
+fig.write_html("number_elections_per_person.html")
 
 # %%
 #We compute here different statistics
@@ -784,6 +809,50 @@ print(res.summary())
 # Intercept: The intercept is also not significant, which is not typically a concern as it simply sets the baseline log-odds of the outcome when all predictors are at zero.
 #
 # In summary, the model strongly suggests that the ratio of positive votes is a key predictor of election outcomes, while other variables like the year of the election, the number of votes, and the average comment length do not show a significant relationship in this logistic regression model. The presence of quasi-separation suggests that while the model fits the current data well, it might not generalize well to new data.
+
+# %%
+#Let's plot the proportion of election that were successful over the years
+elections_unique_df = elect_features_df.groupby('global_election_id').apply(lambda x : pd.Series({
+    'result' : x['result'].max(),
+    'number_voters' : len(x['list_of_voters_index_vote '].values[0]),
+    'target' : x['target'].values[0],
+    'year_election' : x['year_election'].max(),
+})).reset_index()
+elections_unique_df
+
+
+# %%
+#plot the distribution of the number of voters per election
+plt.figure(figsize=(15, 10))
+
+ax = sns.histplot(elections_unique_df['number_voters'], color='teal', bins=1000, edgecolor='black' )
+
+ax.set_title('Distribution of Number of Voters', fontsize=16)
+
+ax.set_xlabel('Number of Voters', fontsize=14)
+ax.set_ylabel('Frequency (Log Scale)', fontsize=14)
+ax.grid(True, which="both", ls="--", linewidth=0.5)
+
+plt.show()
+
+# %%
+result_counts = elections_unique_df['result'].value_counts(normalize=True).reset_index()
+result_counts.columns = ['Election Outcome', 'Percentage']
+
+# Converting 'Election Outcome' to string
+result_counts['Election Outcome'] = result_counts['Election Outcome'].astype(str)
+
+# Creating the bar plot using Plotly
+fig = px.bar(result_counts, 
+             x='Election Outcome', 
+             y='Percentage',
+             title='Percentage Distribution of Election Outcomes')
+
+# Displaying the plot
+fig.show()
+
+# Saving to HTML file
+fig.write_html("election_outcome_percentages.html")
 
 # %% [markdown]
 # ### Number of votes analysis <a class="anchor" id="eda_analysis"></a>
@@ -946,34 +1015,35 @@ plt.show()
 # The increasing trend in the ratio of voters plateaus, which may imply that beyond a certain point, increasing the threshold for interaction weight does not significantly influence the likelihood of users participating in each other's votes. It can be inferred that there might be a saturation point beyond which the strength of interaction (as quantified by weight) does not have much additional impact on voting participation.
 
 # %%
-interaction_df_plot = interactions_df.copy()
-interaction_df_plot.loc[interactions_df['vote'] != 1, 'vote'] = 0
+grouped = interactions_df.groupby('interaction_count').apply(lambda x: pd.Series({
+    'proportion_positive_votes': x[x.vote == 1]['vote'].sum() / len(x.source)})).reset_index()
+grouped
 
-interaction_count_counts = interaction_df_plot['interaction_count'].value_counts()
-interaction_df_plot['count_per_interaction'] = interaction_df_plot['interaction_count'].map(interaction_count_counts)
-filtered_df = interaction_df_plot[interaction_df_plot['count_per_interaction'] >= 30].copy()
+# Calculate mean vote for each interaction count
+# Create a Plotly line plot
+fig = px.line(grouped, x='interaction_count', y='proportion_positive_votes', markers=True)
 
-plt.figure(figsize=(15, 10))
-ax = sns.lineplot(x='interaction_count',
-                  y='vote',
-                  data=filtered_df,
-                  color='teal',
-                  marker='o',
-                  markersize=10,
-                  markerfacecolor='skyblue',
-                  markeredgecolor='black',
-                  markeredgewidth=1,
-                  errorbar='ci')
+# Customize the plot
+fig.update_traces(marker=dict(size=10, line=dict(width=1, color='black')))
 
-ax.set_title('Percentage of Positive Votes by Number of Interactions', fontsize=20, pad=20)
-ax.set_xlabel('Number of Interactions', fontsize=15)
-ax.set_ylabel('Percentage of Positive Votes', fontsize=15)
-ax.grid(True)  
-ax.set_xticks(filtered_df['interaction_count'].unique()) 
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
+fig.update_layout(
+    title='Percentage of Positive Votes by Number of Interactions',
+    xaxis_title='Number of Interactions',
+    yaxis_title='Percentage of Positive Votes',
+    xaxis=dict(
+        range=[0, 20],  # Set initial range from 0 to 20
+        rangeslider=dict(visible=True),  # Enable the rangeslider
+        type='linear'
+    ),
+    title_font_size=20,
+    font=dict(size=15)
+)
 
-plt.show()
+# Show the plot
+fig.show()
+
+#Save the plot to an html file
+fig.write_html("percentage_interactions.html")
 
 # %% [markdown]
 # Despite the variability, there seems to be a general trend where the percentage of positive votes tends to increase with the number of interactions, especially noticeable in the initial section of the plot. However, this trend is not consistent across the entire range of interaction counts.
@@ -1010,8 +1080,13 @@ def get_number_interactions (voter, target , edges_df) :
     if edges_df[(edges_df['source'] == voter ) & (edges_df['target'] == target)].empty : 
         return 0
     else : 
-        return edges_df[(edges_df['source'] == voter) & (edges_df['target'] == target)]['weight'].values[0]
+        return 1
 
+
+# %%
+#Save to csv 
+elect_dynamics_df.to_csv('/Users/romainberquet/Desktop/epfl/ada/elect_dynamics_df.csv', index=False)
+edges_df.to_csv('/Users/romainberquet/Desktop/epfl/ada/edges_df.csv', index=False)
 
 # %%
 from tqdm import tqdm
@@ -1024,14 +1099,14 @@ num_elections_voted = elect_dynamics_df.groupby('source')['global_election_id'].
 unique_voters = edges_df['source'].unique()
 total_voters = len(unique_voters)
 
-# Calculate 10% of total voters for progress updates
-ten_percent_voters = total_voters // 10
+# Calculate 1% of total voters for progress updates
+one_percent_voters = total_voters // 100
 
 #We iterate over all the voter in the graph
 for index, voter in tqdm(enumerate(unique_voters)): 
 
     # Progress update every 10%
-    if index % ten_percent_voters == 0:
+    if index % one_percent_voters == 0:
         print(f"Processed {index / total_voters * 100:.0f}% of voters")
 
     #We iterate over all the elections the voter has voted in
@@ -1074,7 +1149,6 @@ for index, voter in tqdm(enumerate(unique_voters)):
 
 
 
-
 # %%
 #create a dataframe from the list of dictionaries
 dataset_df = pd.DataFrame(dataset)
@@ -1104,13 +1178,80 @@ plt.grid(True, which="both", ls="--", linewidth=0.5)
 
 plt.show()
 
-# %%
-voters = analysis_df.groupby('source').apply(lambda x : pd.Series({
-    'number_of_votes' : len(x['target'])})).reset_index()
-voters[voters.source == 'Blnguyen']
-
 # %% [markdown]
 # To have a better understanding of the interactions, we plot them in a graph. We also plot the degree rank plot and histogram. The degree of a node is the number of edges adjacents to the node. This plot helps us to better understand the distribution of the number of adjacent nodes. We can see that most of the nodes have a low degree.
+
+# %%
+interactions_df
+
+# %%
+#Now we will look into what influences particularly the outcome of a voted
+dataset = []
+unique_voters = edges_df['source'].unique()
+
+for voter in unique_voters : 
+
+    voter_elections = elect_dynamics_df[elect_dynamics_df['source'] == voter]['global_election_id'].unique()
+    #We get the list of the contact of the voter
+    list_contacts_voters = edges_df[edges_df['source'] == voter]['target'].values
+
+    for election in voter_elections :
+
+        #Get the vote of the voter in the election 
+        vote = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['vote'].values[0]
+
+        if list_contacts_voters.size == 0 :
+            dataset.append({
+                'voter' : voter,
+                'number_positive_votes' : 0,
+                'number_negative_votes' : 0,
+                'interaction_target_user' :  get_number_interactions(voter, target, edges_df),
+                'vote' : 0
+            })
+
+        else : 
+    
+            election_id = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['global_election_id'].values[0]
+            date_vote = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['date_vote'].values[0]
+
+            #Compute the stats
+            filtered_iter_df = elect_dynamics_df[(elect_dynamics_df['global_election_id'] == election_id) & 
+                                                (elect_dynamics_df['date_vote'] < date_vote) &
+                                                (elect_dynamics_df['source'].isin(list_contacts_voters))]
+            
+            #Get the number of positive votes
+            number_positive_votes = filtered_iter_df[filtered_iter_df['vote'] == 1]['vote'].count()
+
+            #Get the number of negative votes
+            number_negative_votes = filtered_iter_df[filtered_iter_df['vote'] == -1]['vote'].count()
+
+            
+            #If the vote is neutral we don't take into account
+            if vote == 0 : 
+                continue
+            
+            #now we add to the dataset the stats 
+            dataset.append({
+                'voter' : voter,
+                'number_positive_votes' : number_positive_votes,
+                'number_negative_votes' : number_negative_votes,
+                'interaction_target_user' : get_number_interactions(voter, target, edges_df),
+                'vote' : vote
+            })
+
+# %%
+dataset_df = pd.DataFrame(dataset)
+dataset_df
+
+#change the -1 vote to 0
+dataset_df['vote'] = dataset_df['vote'].replace({-1 : 0})
+
+# %%
+#Run a logistic regression on the dataset
+mod = smf.logit(formula='vote ~ number_positive_votes + number_negative_votes + interaction_target_user', data=dataset_df)
+
+res = mod.fit()
+print(res.summary())
 
 # %%
 # We sort the nodes in the graph by their degree
