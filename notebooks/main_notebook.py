@@ -535,8 +535,6 @@ fig.update_layout(xaxis_title="Election outcome",
 fig.write_html("election_outcome.html")
 fig.show()
 
-# %%
-
 # %% [markdown]
 # ##### 6 - Dive into comments
 
@@ -885,10 +883,11 @@ print(new_df.groupby(["target", "result"])["source"].count().mean())
 df = pd.read_csv("../data/wiki-RfA-cleaned.csv")
 
 # We filter out all the votations after 2008 as we do not have the edits for those dates
-df = df[df.year_election < 2009]
+df_copy = df.copy(deep=True)
+df_filtered = df_copy[df_copy.year_election < 2009]
 
 #Set of users that are present in the adminship dataset
-admin_set = set(df['source'].to_list() + df['target'].to_list())
+admin_set = set(df_filtered['source'].to_list() + df_filtered['target'].to_list())
 
 # %%
 print(f"Number of users present in the adminship dataset : {len(admin_set)}")
@@ -1488,6 +1487,7 @@ for i, ax in enumerate(fig.get_axes()):
 fig.suptitle("Difference between observed and mean percentage of votes per communities in G", size='x-large', fontweight='bold')
 fig.supxlabel("Destination community", size='x-large', fontweight='bold')
 fig.supylabel("Source community", size='x-large', fontweight='bold')
+fig.legend(handles=[plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='black', markersize=10, label='Significant Result')], bbox_to_anchor=(1., 1.05))
 plt.show()
 
 # %% [markdown]
@@ -1669,56 +1669,68 @@ for count, community in enumerate(communities):
 # ### Fake accounts or bots
 
 # %%
-edits_df
+edits_copy_df = edits_df.copy(deep=True)
 
 # %%
-user_edits_count = edits_df.groupby('username')['counts'].sum().reset_index()
+#We count the number of edits done by each user
+user_edits_count = edits_copy_df.groupby('username')['counts'].sum().reset_index()
 user_edits_count
 
 # %%
+#We remove entries with no source
 df_clean = df[df['source'] != '']
 df_clean
 
 # %%
+#For each user we check how many time they voted 
 nb_votes = df_clean.groupby(['source'])[['target']].count().rename(columns={'target': 'nb_votes'})
 nb_votes
 
 # %%
+#merge both datasets to have number of edits and votes together
 votes_and_edits = nb_votes.merge(user_edits_count, how='left', left_index=True, right_on='username').reset_index().fillna(0)[['username', 'counts', 'nb_votes']]
 votes_and_edits.rename(columns={'counts': 'edits_count'}, inplace=True)
 votes_and_edits
 
 # %%
-#Run a logistic regression on the dataset
+#Run a logistic regression on the dataset to see if number of votes correlated to number of edits 
 mod = smf.ols(formula='nb_votes ~ edits_count', data=votes_and_edits)
 res = mod.fit()
 print(res.summary())
 
 # %%
+#Create dataset with only users with no edits
 no_edits = votes_and_edits[votes_and_edits['edits_count'] == 0]
 no_edits
 
 # %%
+#keep only unique values having "bot" on username
 df_clean[df_clean['source'].str.contains('bot')]['source'].unique()
 
 
 # %%
+#suspect users have no edits and voted only once
 suspects = no_edits[no_edits['nb_votes'] == 1]['username'].unique()
 
 # %%
+#recover entries that a vote from a suspected account
 df_with_suspects = df_clean[df_clean['source'].isin(suspects)]
 df_with_suspects
 
 # %%
+#Want to see of many suspect vote there is in each election
 suspects_by_election = df_with_suspects.groupby(['target', 'year_election', 'result'])[['source']].count().sort_values('source')
 suspects_by_election
 
 # %%
-suspects_by_election['percentage'] = suspects_by_election.apply(lambda r: r['source'] / len(df_clean[df_clean['target'] == r.name[0]]), axis=1)
+#Want to see which percentage of votes is related to suspected accounts
+suspects_by_election['percentage'] = suspects_by_election.apply(lambda r: 100*r['source'] / len(df_clean[df_clean['target'] == r.name[0]]), axis=1)
 suspects_by_election
 
 # %%
-suspects_by_election[(suspects_by_election.index.get_level_values(1).astype(int) > 2005) & (suspects_by_election.index.get_level_values(2) == '1')].sort_values('percentage', ascending=False)[:35]
+#Show votation with highest percentage of suspected account
+suspects_by_election[(suspects_by_election.index.get_level_values(1).astype(int) > 2005) & (suspects_by_election.index.get_level_values(2) == 1)].sort_values('percentage', ascending=False)[:10]
 
 # %%
+#Expose votes from user with most suspect votes
 df_with_suspects[(df_with_suspects['target'] == 'Qwyrxian') & (df_with_suspects['source'].isin(suspects))]
