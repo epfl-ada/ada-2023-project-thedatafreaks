@@ -1,26 +1,25 @@
-# A more democratic Wikipedia
+# BOB’s journey to adminship: Exploring the world of Wikipedia Requests for Adminship
+
 *TheDataFreaks: Robin Jaccard, Jeremy Di Dio, Daniel Tavares, Anne-Laure Tettoni, Romain Berquet*
+
+## Datastory
+
+Embark on a captivating exploration of Bob's journey towards admission by following the link to our insightful data narrative: [Datastory](dioday45.github.io/TheDataFreaks/).
 
 ## Abstract
 
-Only a small fraction of wikipedia users vote in the 'request for adminship' (RfA) elections, although admins hold the key to maintaining the integrity and functionality of the world's largest online encyclopedia. From 2003 to 2013, there is an average of 53 votes per election out of the millions of registered users [1] that are allowed to vote on Wikipedia from 2003 to 2013. This low number raise some concerns for the platform's democratic processes and its robustness. A small number of voters may not accurately represent the diverse opinions and perspectives within the Wikipedia community.
+Only a small fraction of wikipedia users vote in the 'request for adminship' (RfA) elections, although admins hold the key to maintaining the integrity and functionality of the world's largest online encyclopedia. From 2003 to 2013, there is an average of 53 votes per election out of the millions of registered users [1] that are allowed to vote. This low number raises some concerns for the platform's democratic processes and its robustness. A small number of voters may not accurately represent the diverse opinions and perspectives within the Wikipedia community.
 
-Our aim is to investigate the factors influencing participation and identify the challenges that arise from the low engagement rate. Based on our research, we intend to propose solutions to increase the participation rate. 
-
-We will study the reasons that push people to go out of their way to vote, whether it is to support someone they know, to support a community they are a part of, to support someone that share the same interests or to reject someone from an opposing group. 
-
+Our aim is to investigate the factors influencing participation, identify challenges that arise from the low engagement rate, and examine carefully the fairness of the elections. Based on our research, we aim to propose effective solutions to enhance the fairness and overall participation rate.
 
 ## Research questions
 
-Starting from the wikipedia request for adminship votes dataset, we discover that at the beginning, very few people voted in elections, resulting in people being elected by a minority of users. This changes over the years (there are more voters as time passes), but they still represent a very small fraction of wikipedia registered users. From this, we see that there is little incentive to vote in these elections. This renders the voting process potentially undemocratic, as a small group of (badly intentioned?) users could have a huge influence on an election, and decide to support or undermine a specific candidate, without them being able to do anything about it.
+Starting from the wikipedia request for adminship votes dataset, we discover that very few people vote in elections, resulting in people being elected by a minority of users. From this, we see that there is little incentive to vote in these elections. This renders the voting process potentially undemocratic, as a small group of badly intentioned users could have a huge influence on an election by supporting or undermining a specific candidate.
 
+Is the election process as fair as it should ideally be?<br>
+What drives people to vote?<br>
+How could the Wikipedia democratic process be improved?<br>
 
-
-- Why do people participate in elections ? <br>
-- What are the relationships between voters, if there are any ? <br>
-    - Are there sub-communities within the larger community, and do these sub-communities exert any influence on the voting outcomes ? <br>
-    - Is it possible to observe greater backing from individuals who have similar interests to yours ? <br>
-- How could the wikipedia democratic process be improved ? <br>
 
 These are the questions that we will try to answer during our project.
 
@@ -31,59 +30,85 @@ In our research, we have incorporated two additional datasets to enrich our anal
 
 The first dataset captures edits made on user talk pages. Using this dataset, we model the interactions between users, allowing us to create communities based on these user-to-user interactions.
 
-The second dataset that contain all edits across all Wikipedia pages. It serves as a valuable resource for understanding the editing activities of users present in our primary dataset. By looking at the modifications made by these users on various Wikipedia pages, we aim to gain insights into the content areas and topics that interest each individual.
+The second dataset that contains all edits across all Wikipedia pages. It serves as a valuable resource for understanding the editing activities of users present in our primary dataset. By looking at the modifications made by these users on various Wikipedia pages, we aim to gain insights into the content areas and topics that interest each individual.
 
-Both dataset being extremely large, we have decided to filter them "on the fly" so that we only keep the data that concern the users that have taken part in the elections between 2003 and 2013. After this, the size of the datasets is reasonable and can be handled without problem.
-
+Both dataset being extremely large, we have decided to filter them "on the fly" so that we only keep the data that concern the users that have taken part in the elections between 2003 and 2013. After this, the sizes of the datasets are reasonable and can be handled without problem.
 
 ## Methods
 
-### Pre-proccessing and dataset construction
+### Pre-processing and dataset construction
 
 We start with the exploratory data analysis of the dataset that contains the votes in the RfA elections. We filter out some incomplete/erroneous records and perform a complete exploration of all the data by computing various descriptive statistics. 
 
-From the dataset with all the edits of the personal user pages, we construct an unweighted and undirected graph. The nodes represent the users that are present in the RfA elections dataset and the edges connecting two users indicate that they have interacted with each other on their personal pages. 
+From the dataset with all the edits of the personal user pages, we construct a graph. The nodes represent the users that are present in the RfA elections dataset and the edges connecting two users indicate that they have interacted with each other on their personal pages. The graph is weighted (by the number of interactions) and undirected. We do not include joint edits on the interaction graph. This has the advantage of only displaying direct and conscious interactions. The results are independent of the edits which makes any potential connection between clusters and shared interests more relevant. 
 
-Lastly, we use the dataset with all edits to construct a list of edited pages for each users present in the RfA elections dataset.
+Lastly, we use the dataset with all edits to construct a list of edited pages for each user present in the RfA elections dataset.
+
+### Individual perspectives
+
+To understand what drives people to vote, we create a balanced dataset by pairing (for a given election) a voter and a non-voter that have similar voting statistics. Then we conduct a logistic regression, incorporating two key features: the number of contacts from the voter who voted before him and a binary variable representing contact between the voter and the person running for election. 
+
+Additionally, we conduct a logistic regression to predict the value of the vote using two different features. The initial pair of features corresponds to the number of contacts who voted positively for the election before our user and the number of contacts who voted negatively before him. The second feature is a binary feature that represents that a  communication exists between the candidate and the voter. 
+
 
 ### Communities and interactions
 
-We use Louvain algorithm to find communities in the graph. Our goal is to find evidence that users vote more frequently when the election concern other users of their community. For this we compute the number of intra-community votes for each community and divide this results by the expected value for the number of votes in this same community. This gives us a ratio that is significantly bigger than 1 for most communities which indicates a tendency for users to vote inside their community.
+We use the Louvain algorithm to find communities in the graph. To make a bit more sense of those communities, we look at the most edited pages in each community to characterize each community and potentially make sense of suspicious voting patterns.
+
+To find evidence that the communities play a role in influencing the presence of votes between two users, we compute the numbers of votes from each community to every other community and normalize these values by the corresponding expected numbers of votes based on community sizes. This gives us ratios that can be compared to 1. Indeed if the communities have no influence we should not expect to see ratios significantly bigger or smaller than 1.
+
+We also analyze vote results to determine the percentage of positive votes between the different communities. After filtering out the non-significant results, we assessed support by calculating the difference in positive votes percentage from the baseline for each community pair. For the baseline, we use the percentage of positive votes over the whole dataset. With those results, we create a graph that illustrates support or opposition between communities.
+
+For the edits, we compute the mean of the Jaccard similarity in the lists of edited pages between every pair of users and compute the correlation with a binary value that indicates that the pair is connected by a vote. The positive correlation indicates if we are more likely to vote for (or against) someone that shares similar interests as us.
+
+To identify the presence of fake accounts, we filter the users of the dataset based on their votes and edits. If a user creates multiple accounts to artificially inflate positive votes, it's probable that they won't invest time in making edits with each account before casting a vote.
+To identify elections possibly influenced by a large number of fake accounts, we compute the ratio of such accounts (meeting both criteria simultaneously) participating in each election and inspect more carefully the elections with the highest ratios.
 
 
-For the edits, we compute the mean of the Jaccard similarity in the lists of edited pages between every pairs of users compute the correlation with a binary value that indicate that the pair is connected by a vote. The positive correlation indicates that we are more likely to vote for (or against) someone that share similar interests as us.
+## Code organization
+
+In the ```notebooks/main_notebook.ipynb```, you can find all the detailed analyses that are presented in the datastory.  
+
+In the ```ada2023``` folder, you can find the main logic to build the graph.
+
+The ```scripts``` folder contains the logic to filter the data on the fly.
+
+Here is an overview of the codebase:
 
 
-We also look at the most edited pages in each topic to improve the characterization of each communities and potentially make sense of suspicious voting patterns between communities.
+
+```
+.
+├── README.md
+├── ada2023
+│   ├── __init__.py
+│   └── utils.py
+├── data
+│   ├── interactions.csv
+│   ├── interactions_edits_grouped.zip
+│   ├── wiki-RfA-cleaned.csv
+│   └── wiki-RfA.txt.gz
+├── notebooks
+│   └── main_notebook.ipynb
+├── requirements.txt
+└── scripts
+    ├── user_edit_interactions.py
+    └── user_talk_interactions.py
 
 
-## Timeline
-Below is a proposed timeline.
-
-- 17.11.23: **Project milestone 2 deadline**
-    - Pre-proccesing and cleaning of data finished, inital study of the communities and their influence on the votes.
----
-- 18.11.23: Project work paused in order to work on Homework 2.
-- 1.12.23: **Homework 2 deadline**.
----
-- 8.12.23: Finish all the analysis and complete the notebook with the feedbacks received.
-- 12.12.23: Decide the structure of the data story and draft it.
-- 15.12.23: Have a clear plan of the presentation of the website with all the data visualizations.
-- 15.12.22 - 20.12.23: Work on the data story and visualization.
-- 20.12.23: Finish data story, update README.
-- 22.12.23: **Project milestone 3 deadline**.
+```
 
 ## Organization within the team
-Jeremy : Pre-processing of the large datasets + graph creation<br>
-Robin : Analysis of the edits of each community + proposed ideas<br>
-Romain : Exploratory Data Analysis<br>
-Daniel : Analysis of the interactions between all communities<br>
-Anne-Laure : Writing data story + proposed ideas
+Jeremy : Pre-processing of the large datasets and website creation <br>
+Robin : Analysis of the edits of each community, visualization plots, and data story + <br>
+Romain : Exploratory Data Analysis and analysis of RfA at the individual level <br>
+Daniel : Analysis of the interactions between all communities and visualization plots <br>
+Anne-Laure : Data story writing, illustration creation, and community analysis
 
 ## Sources
 
-
-[[1] Wikimedia, number of registered users 2003-2013](https://stats.wikimedia.org/#/en.wikipedia.org/contributing/new-registered-users/normal|bar|2003-01-28~2013-05-01|~total|monthly)<br>
+[Wikimedia, number of registered users 2003-2013](https://stats.wikimedia.org/#/en.wikipedia.org/contributing/new-registered-users/normal|bar|2003-01-28~2013-05-01|~total|monthly)<br>
 [Complete Wikipedia edit history](http://snap.stanford.edu/data/wiki-meta.html)<br>
 [Wikipedia Requests for Adminship](http://snap.stanford.edu/data/wiki-RfA.html)<br>
 [Talk pages](https://en.wikipedia.org/wiki/Help:Talk_pages)<br>
+[Paper of Cabunducan, G.](https://ieeexplore.ieee.org/document/5992657)
