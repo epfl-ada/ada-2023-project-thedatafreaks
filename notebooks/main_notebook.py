@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # _Main Notebook_
+# # _Wikipedia request for Adminship_
 
 # %% [markdown]
 # ## Table of Contents:
@@ -36,21 +36,24 @@
 
 # %%
 # Imports
-import pandas as pd
 import sys
 sys.path.append('../')
 from ada2023.utils import *
+
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import gzip
 from itertools import combinations 
-from scipy.stats import pearsonr
-from statsmodels.stats import diagnostic
 from scipy import stats
+from scipy.stats import pearsonr
 import statsmodels.formula.api as smf
+from statsmodels.stats import diagnostic
 import plotly.graph_objects as go
 import plotly.express as px
+from tqdm import tqdm
+import gravis as gv
 
 # %% [markdown]
 # # Exploratory Data Analysis <a class="anchor" id="eda"></a>
@@ -59,6 +62,7 @@ import plotly.express as px
 # ### Data Loading <a class="anchor" id="eda_data"></a>
 
 # %%
+#Loading Wikipedia Request for Adminship dataset
 with gzip.open('../data/wiki-RfA.txt.gz', 'rt', encoding='utf-8') as f:
     blocks = f.read().strip().split('\n\n')  # Assuming each record is separated by a blank line
 
@@ -410,8 +414,7 @@ ax.set_title('Distribution of the values for year_election', fontsize=16)
 plt.show()
 
 # %%
-import pandas as pd
-import plotly.express as px
+
 
 # Ensure the 'year_election' column is of type integer
 year_elections_cleaned_data['year_election'] = year_elections_cleaned_data['year_election'].astype(str)
@@ -1056,7 +1059,6 @@ def get_number_interactions (voter, target , edges_df) :
 
 
 # %%
-from tqdm import tqdm
 dataset = []
 
 # Pre-compute the number of elections each voter has voted in
@@ -1182,8 +1184,19 @@ communities = nx.community.louvain_communities(G, resolution=1.5, seed=2)
 print(f"Number of communities in graph of users with interactions : {len(communities)}")
 
 # %%
-for i, c in enumerate(communities):
-    print(f"Community {i} has size {len(c)}")
+#Derviation of communities themes explained in part : "Content of edits analysis" 
+communities_name = ["Pop Culture Mix", "Middle East & Religion", "Varied Interests", "USA Historical Figures", 
+              "Australia", "Religion Debates & Controversies", "Controversial Pop Culture", 
+              "Russia & Eastern Europe", "USA & east Asia mix", "New Zealand", "Military Aircraft", "Youth Pop Culture", 
+              "India & South Asia", "Historical & Political mix", "People Mix", 
+              "USA Varied Interest", "Science", "Historical Figures", 
+              "UK & Ireland", "TV Series 'Lost'", "Sports", "Scientology", 
+              "Canada & Ice Hockey", "Comics", "Balkans & Central Asia", 
+              "Chemical Elements", "Wrestling", "Oregon", "Politics"]
+
+# %%
+for i, (c,n) in enumerate(zip(communities, communities_name)):
+    print(f"Community {i} is about \"{n}\" and has size {len(c)}")
 
 # %% [markdown]
 # ### Vote analysis <a class="anchor" id="communities_vote"></a>
@@ -1273,14 +1286,6 @@ for index, row in df.iterrows():
         nb_community_votes[i_src] += 1
 
 # %%
-fig, ax = plt.subplots(figsize=(10,10*len(communities)), nrows=len(communities), ncols=2)
-for i in range(len(communities)):
-    ax[i,0].set_title(f"vote recv by community {i}")
-    ax[i,0].pie(vote_count_matrix[i,:], labels=list(range(len(communities)))) 
-    ax[i,1].set_title(f"votes given by community {i}")
-    ax[i,1].pie(vote_count_matrix[:,i],labels=list(range(len(communities))))  
-
-# %%
 # We verify our computations and transform the vote count matrix into a ratio matrix
 np.testing.assert_array_equal(vote_count_matrix.sum(axis=1), nb_community_votes)
 ratio_vote_count_matrix = (vote_count_matrix / nb_community_votes[:, np.newaxis])*100 
@@ -1290,12 +1295,18 @@ np.testing.assert_almost_equal(ratio_vote_count_matrix.sum(axis=1), np.ones(len(
 # In the plot we observe that the destination communities that recieve most of the votes are the larger communities. This is explained by the fact that for large communities, more votation take place and therefore more votes are directed to them.
 
 # %%
+heatmap_figsize=(36,12)
+ticks = np.arange(0.5, len(communities), 1)
+
+# %%
 # Heatmap of the ratio of votes across communities
-plt.figure(figsize=(24, 12))
+plt.figure(figsize=heatmap_figsize)
 sns.heatmap(ratio_vote_count_matrix, cmap="Blues", annot=True, fmt=".1f", linewidths=.5, linecolor="black")
-plt.title("Percentage of votes per communities in G")
-plt.xlabel("Destination community")
-plt.ylabel("Source community")
+plt.title("Percentage of votes per communities in G",size=15, fontweight='bold', y=1.02)
+plt.xlabel("Destination community", size=15, fontweight='bold')
+plt.ylabel("Source community", size=15, fontweight='bold')
+plt.xticks(ticks=ticks,labels=communities_name, rotation=40, ha='right')
+plt.yticks(ticks=ticks, labels=communities_name, rotation='horizontal')
 plt.show()
 
 # %% [markdown]
@@ -1333,28 +1344,14 @@ for index, row in df.iterrows():
 gain_vote_expected_matrix = np.nan_to_num(nb_result_votes / ratio_vote_expected_matrix)
 
 # %%
-communities_name = ["Pop Culture Mix", "Middle East & Religion", "Varied Interests", "USA Historical Figures", 
-              "Australia", "Religion Debates & Controversies", "Controversial Pop Culture", 
-              "Russia & Eastern Europe", "USA & east Asia mix", "New Zealand", "Military Aircraft", "Youth Pop Culture", 
-              "India & South Asia", "Historical & Political mix", "People Mix", 
-              "USA Varied Interest", "Science", "Historical Figures", 
-              "UK & Ireland", "TV Series 'Lost'", "Sports", "Scientology", 
-              "Canada & Ice Hockey", "Comics", "Balkans & Central Asia", 
-              "Chemical Elements", "Wrestling", "Oregon", "Politics"]
-
-# %%
-np.arange(0,29,1)
-
-# %%
 # Heatmap of the gain from expected votes across communities
-# Couleurs sympas: 'PuBuGn', 'RdYlBu', 'coolwarm'
-plt.figure(figsize=(36, 12))
+plt.figure(figsize=heatmap_figsize)
 sns.heatmap(gain_vote_expected_matrix, cmap='PuBuGn', annot=True, fmt=".2f", linewidths=.5, linecolor="black")
 plt.title("Ratio of observed number of votes to expected number of votes", size=15, fontweight='bold', y=1.02)
 plt.xlabel("Destination community", size=15, fontweight='bold')
 plt.ylabel("Source community", size=15, fontweight='bold')
-plt.xticks(ticks=np.arange(0.5, 29.5, 1),labels=communities_name, rotation=40, ha='right')
-plt.yticks(ticks=np.arange(0.5, 29.5, 1), labels=communities_name, rotation='horizontal')
+plt.xticks(ticks=ticks,labels=communities_name, rotation=40, ha='right')
+plt.yticks(ticks=ticks, labels=communities_name, rotation='horizontal')
 plt.savefig("shades_of_blue.png")
 plt.show()
 
@@ -1371,6 +1368,7 @@ plt.show()
 # populate the matrix of votes
 vote_result_matrix = [[np.zeros(3) for i in range(len(communities))] for j in range(len(communities))]
 nb_result_votes = np.zeros((len(communities), len(communities)))
+#We fill the matrix with each vote, "For", "Neutral" or "Against" depending on the source and destination community of users
 for index, row in df.iterrows():
     entity1 = row['source']
     entity2 = row['target']
@@ -1386,9 +1384,12 @@ for index, row in df.iterrows():
         nb_result_votes[i_src][i_dst] += 1
 
 # %%
+#Transform result matrix into percentage matrix, putting values to 0 if no vote was awarded
+np.seterr(divide='ignore', invalid='ignore')
 perc_result_matrix = np.nan_to_num((vote_result_matrix / nb_result_votes[:,:,np.newaxis]))*100
 
 # %%
+#Plot "For" percentage heatmap
 for_ratio_result_matrix = perc_result_matrix[:,:,2]
 significance_matrix = [[[None]*3 for i in range(len(communities))] for j in range(len(communities))]
 for i in range(len(communities)):
@@ -1404,12 +1405,16 @@ for i in range(len(communities)):
     for j in range(len(communities)):
         if significance_matrix[i][j][0]!=None and significance_matrix[i][j][0].pvalue < 0.01:
             plt.scatter(j+0.85, i+0.35, color='black', marker='*')
-plt.title("Percentage of votes \"for\" per communities in G")
-plt.xlabel("Destination community")
-plt.ylabel("Source community")
+plt.title("Percentage of votes \"for\" per communities in G", size=15, fontweight='bold', y=1.02)
+plt.xlabel("Destination community", size=15, fontweight='bold')
+plt.ylabel("Source community", size=15, fontweight='bold')
+plt.xticks(ticks=ticks,labels=communities_name, rotation=40, ha='right')
+plt.yticks(ticks=ticks, labels=communities_name, rotation='horizontal')
+plt.legend(handles=[plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='black', markersize=10, label='Significant Result')], bbox_to_anchor=(1., 1.05))
 plt.show()
 
 # %%
+#Plot "Neutral" percentage heatmap
 neutral_ratio_result_matrix = perc_result_matrix[:,:,1]
 for i in range(len(communities)):
     for j in range(len(communities)):
@@ -1424,12 +1429,16 @@ for i in range(len(communities)):
     for j in range(len(communities)):
         if significance_matrix[i][j][1]!=None and significance_matrix[i][j][1].pvalue < 0.01:
             plt.scatter(j+0.85, i+0.35, color='black', marker='*')
-plt.title("Percentage of votes \"neutral\" per communities in G")
-plt.xlabel("Destination community")
-plt.ylabel("Source community")
+plt.title("Percentage of votes \"neutral\" per communities in G", size=15, fontweight='bold', y=1.02)
+plt.xlabel("Destination community", size=15, fontweight='bold')
+plt.ylabel("Source community", size=15, fontweight='bold')
+plt.xticks(ticks=ticks,labels=communities_name, rotation=40, ha='right')
+plt.yticks(ticks=ticks, labels=communities_name, rotation='horizontal')
+plt.legend(handles=[plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='black', markersize=10, label='Significant Result')], bbox_to_anchor=(1., 1.05))
 plt.show()
 
 # %%
+#Plot "Against" percentage heatmap
 against_ratio_result_matrix = perc_result_matrix[:,:,0]
 for i in range(len(communities)):
     for j in range(len(communities)):
@@ -1443,9 +1452,12 @@ for i in range(len(communities)):
     for j in range(len(communities)):
         if significance_matrix[i][j][2]!=None and significance_matrix[i][j][2].pvalue < 0.01:
             plt.scatter(j+0.85, i+0.35, color='black', marker='*')
-plt.title("Percentage of votes \"against\" per communities in G")
-plt.xlabel("Destination community")
-plt.ylabel("Source community")
+plt.title("Percentage of votes \"against\" per communities in G", size=15, fontweight='bold', y=1.02)
+plt.xlabel("Destination community", size=15, fontweight='bold')
+plt.ylabel("Source community", size=15, fontweight='bold')
+plt.xticks(ticks=ticks,labels=communities_name, rotation=40, ha='right')
+plt.yticks(ticks=ticks, labels=communities_name, rotation='horizontal')
+plt.legend(handles=[plt.Line2D([0], [0], marker='*', color='w', markerfacecolor='black', markersize=10, label='Significant Result')], bbox_to_anchor=(1., 1.05))
 plt.show()
 
 # %%
@@ -1464,15 +1476,15 @@ for i in range(len(communities)):
                 ax[i,j].scatter(x=[k], y=[60], marker='*', color='black')
 
 for i, ax in enumerate(fig.get_axes()):
-    if i < len(communities):
-        ax.set_xlabel(f'{i%len(communities)}', size='large', fontweight='bold') 
+    if i < len(communities):   
+        ax.set_xlabel(f'{communities_name[i%len(communities)]}', size='medium', rotation=70, ha='left') 
         ax.xaxis.set_label_position('top')
     if i%len(communities) == 0 :
-        ax.set_ylabel(f'{i//len(communities)}', size='large', fontweight='bold')
+        ax.set_ylabel(f'{communities_name[i//len(communities)]}', size='medium', rotation="horizontal", ha="right")
     else :
         ax.label_outer()
     if i//len(communities) == len(communities)-1:
-        ax.set_xlabel(f'{i%len(communities)}', size='large', fontweight='bold') 
+        ax.set_xlabel(f'{communities_name[i%len(communities)]}', size='medium', rotation=70, ha='right') 
 fig.suptitle("Difference between observed and mean percentage of votes per communities in G", size='x-large', fontweight='bold')
 fig.supxlabel("Destination community", size='x-large', fontweight='bold')
 fig.supylabel("Source community", size='x-large', fontweight='bold')
@@ -1482,21 +1494,19 @@ plt.show()
 # We can observe that some communities display either a positive or negative bias in their voting preferences. If votes were at random and participation uniform accross communities, we would have expected that the portion of votes "for", "against" and "neutral" to have to same proportion between communities. Suspicious results could help us to inspect further the relationship between the two communities involved.
 
 # %%
-import gravis as gv
-
-# %%
-
-# %%
+#Create a directed graph where each node is a community, and each edge is weighted by the support difference from baseline
 G = nx.DiGraph()
-
 for i, c in enumerate(communities):
     G.add_node(i)
     G.nodes[i]['size'] = len(c)
     G.nodes[i]['name'] = communities_name[i]
+
+#Select layout
 pos = nx.circular_layout(G, scale=700)
 for i in range(len(communities)):
     G.nodes[i]['x'] = pos[i][0]
     G.nodes[i]['y'] = pos[i][1]
+
 baseline = value_perc_vote[1]
 for src in range(len(communities)):
     for dst in range(len(communities)):
@@ -1634,9 +1644,9 @@ print(f"People that are linked by a vote have {mean_sim_vote / mean_sim_all:.2f}
 # %%
 for count, community in enumerate(communities):
     community_to_check = community
-    
     user_list = list(user_indices['username'])
     all_subject = set()
+    #for each user in the community, add his edited subjects
     for user in community_to_check:
         if user in user_list:
             all_subject = (set(user_indices[user_indices['username'] == user]['Indices'].iloc[0])
@@ -1644,11 +1654,15 @@ for count, community in enumerate(communities):
             
     data = pd.DataFrame(index=list(all_subject), columns=['count'])
     data = data.fillna(0)
-    
+
+    #for each user, for each edited subject, add to count
     for user in community_to_check:
         if user in user_list:
             subjects = user_indices[user_indices['username'] == user]['Indices'].iloc[0]
             for s in subjects:
                 data.at[s, 'count'] += 1
+    #print most edited subjects
     print(f"\nCommunity {count}:")            
     print(data.sort_values('count', ascending = False).head(20))
+
+# %%
