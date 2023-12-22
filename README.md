@@ -4,7 +4,7 @@
 
 ## Datastory
 
-Embark on a captivating exploration of Bob's journey towards admission by following the link to our insightful [data narrative](dioday45.github.io/TheDataFreaks/).
+Embark on a captivating exploration of Bob's journey towards admission by following the link to our insightful [data narrative](https://dioday45.github.io/TheDataFreaks/).
 
 ## Abstract
 
