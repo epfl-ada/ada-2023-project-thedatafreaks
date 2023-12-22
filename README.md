@@ -84,6 +84,7 @@ Here is an overview of the codebase:
 │   ├── __init__.py
 │   └── utils.py
 ├── data
+│   ├── graph_communities.png
 │   ├── interactions.csv
 │   ├── interactions_edits_grouped.zip
 │   ├── wiki-RfA-cleaned.csv
