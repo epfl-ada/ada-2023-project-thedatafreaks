@@ -34,6 +34,9 @@
 #   - [Statistics](#edits_statistics)
 #   - [Investigation of most edited pages](#edits_investigation)
 
+# %% [markdown]
+# **Note** : Not all cells should be run as they have or are part of a very long execution time process. Please change them to "Raw" (select cells and press "r") before running all. Concerned cells can be found with "# /!\\ Long execution time". 
+
 # %%
 # Imports
 import sys
@@ -1035,96 +1038,99 @@ def get_number_interactions (voter, target , edges_df) :
     else : 
         return 1
 
-# %% [raw]
-# # /!\ Long execution time 
-# #Change next cells from "raw" to "code" to run.
-# dataset = []
-#
-# # Pre-compute the number of elections each voter has voted in
-# num_elections_voted = elect_dynamics_df.groupby('source')['global_election_id'].nunique()
-#
-# # Get unique voters
-# unique_voters = edges_df['source'].unique()
-# total_voters = len(unique_voters)
-#
-# # Calculate 1% of total voters for progress updates
-# one_percent_voters = total_voters // 100
-#
-# #We iterate over all the voter in the graph
-# for index, voter in tqdm(enumerate(unique_voters)): 
-#
-#     # Progress update every 10%
-#     if index % one_percent_voters == 0:
-#         print(f"Processed {index / total_voters * 100:.0f}% of voters")
-#
-#     #We iterate over all the elections the voter has voted in
-#     voter_elections = elect_dynamics_df[elect_dynamics_df['source'] == voter]['global_election_id'].unique()
-#     for election in voter_elections: 
-#         #Check if the voter has vote_index_in_election > 2 
-#         if elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['vote_index_in_election'].values[0] > 2:
-#             #We compute the number of elections the voter has voted in
-#             number_of_elections_voted = num_elections_voted[voter]
-#
-#             similar_voters = elect_dynamics_df[
-#                 (elect_dynamics_df['number_of_elections_voted'] == number_of_elections_voted) &
-#                 (elect_dynamics_df['source'] != voter) &
-#                 (~elect_dynamics_df['global_election_id'].eq(election)) 
-#             ]['source'].unique()
-#            
-#             if len(similar_voters) > 0:
-#                 #Choose a random voter from the similar voters
-#                 similar_voter = np.random.choice(similar_voters)
-#
-#                 #Get the number of contacts from the voter who voted before the voter
-#                 number_contacts_voter_voted_before = get_number_of_contacts(voter, election, elect_dynamics_df, edges_df)
-#                 number_contacts_similar_voter_voted_before = get_number_of_contacts(similar_voter, election, elect_dynamics_df, edges_df)
-#
-#                 #Get the target of the election
-#                 target = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['target'].values[0]
-#
-#                 dataset.append({
-#                     'voter': voter,
-#                     'voted': 1,
-#                     'number_of_contacts_voter': number_contacts_voter_voted_before - number_contacts_similar_voter_voted_before, 
-#                     'number_interactions_voter_candidate': get_number_interactions(voter, target, edges_df)
-#                 })
-#                 dataset.append({
-#                     'voter': similar_voter,
-#                     'voted': 0,
-#                     'number_of_contacts_voter': number_contacts_similar_voter_voted_before - number_contacts_voter_voted_before, 
-#                     'number_interactions_voter_candidate': get_number_interactions(similar_voter, target, edges_df)
-#                 })
-#
-#
 
-# %% [raw]
-# #create a dataframe from the list of dictionaries
-# dataset_df = pd.DataFrame(dataset)
-# dataset_df
+# %%
+# /!\ Long execution time
+dataset = []
 
-# %% [raw]
-# #Run a logistic regression on the dataset
-# mod = smf.logit(formula='voted ~ number_of_contacts_voter + number_interactions_voter_candidate', data=dataset_df)
-# res = mod.fit()
-# print(res.summary())
+# Pre-compute the number of elections each voter has voted in
+num_elections_voted = elect_dynamics_df.groupby('source')['global_election_id'].nunique()
+
+# Get unique voters
+unique_voters = edges_df['source'].unique()
+total_voters = len(unique_voters)
+
+# Calculate 1% of total voters for progress updates
+one_percent_voters = total_voters // 100
+
+#We iterate over all the voter in the graph
+for index, voter in tqdm(enumerate(unique_voters)): 
+
+    # Progress update every 10%
+    if index % one_percent_voters == 0:
+        print(f"Processed {index / total_voters * 100:.0f}% of voters")
+
+    #We iterate over all the elections the voter has voted in
+    voter_elections = elect_dynamics_df[elect_dynamics_df['source'] == voter]['global_election_id'].unique()
+    for election in voter_elections: 
+        #Check if the voter has vote_index_in_election > 2 
+        if elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['vote_index_in_election'].values[0] > 2:
+            #We compute the number of elections the voter has voted in
+            number_of_elections_voted = num_elections_voted[voter]
+
+            similar_voters = elect_dynamics_df[
+                (elect_dynamics_df['number_of_elections_voted'] == number_of_elections_voted) &
+                (elect_dynamics_df['source'] != voter) &
+                (~elect_dynamics_df['global_election_id'].eq(election)) 
+            ]['source'].unique()
+           
+            if len(similar_voters) > 0:
+                #Choose a random voter from the similar voters
+                similar_voter = np.random.choice(similar_voters)
+
+                #Get the number of contacts from the voter who voted before the voter
+                number_contacts_voter_voted_before = get_number_of_contacts(voter, election, elect_dynamics_df, edges_df)
+                number_contacts_similar_voter_voted_before = get_number_of_contacts(similar_voter, election, elect_dynamics_df, edges_df)
+
+                #Get the target of the election
+                target = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['target'].values[0]
+
+                dataset.append({
+                    'voter': voter,
+                    'voted': 1,
+                    'number_of_contacts_voter': number_contacts_voter_voted_before - number_contacts_similar_voter_voted_before, 
+                    'number_interactions_voter_candidate': get_number_interactions(voter, target, edges_df)
+                })
+                dataset.append({
+                    'voter': similar_voter,
+                    'voted': 0,
+                    'number_of_contacts_voter': number_contacts_similar_voter_voted_before - number_contacts_voter_voted_before, 
+                    'number_interactions_voter_candidate': get_number_interactions(similar_voter, target, edges_df)
+                })
 
 
-# %% [raw]
-# #Plot the distribution of the number of contacts per voter
-# plt.figure(figsize=(15, 10))
-#
-# ax = sns.histplot(dataset_df['number_interactions_voter_candidate'], color='teal', log=True, bins=1000, edgecolor='black')
-#
-# ax.set_title('Distribution of Number of Contacts', fontsize=16)
-# ax.set_xlabel('Number of Contacts', fontsize=14)
-# ax.set_ylabel('Frequency (Log Scale)', fontsize=14)
-#
-# plt.xticks(rotation=45, fontsize=12)
-# plt.yticks(fontsize=12)
-#
-# plt.grid(True, which="both", ls="--", linewidth=0.5)
-#
-# plt.show()
+
+# %%
+# /!\ Long execution time
+#create a dataframe from the list of dictionaries
+dataset_df = pd.DataFrame(dataset)
+dataset_df
+
+# %%
+# /!\ Long execution time
+#Run a logistic regression on the dataset
+mod = smf.logit(formula='voted ~ number_of_contacts_voter + number_interactions_voter_candidate', data=dataset_df)
+res = mod.fit()
+print(res.summary())
+
+
+# %%
+# /!\ Long execution time
+#Plot the distribution of the number of contacts per voter
+plt.figure(figsize=(15, 10))
+
+ax = sns.histplot(dataset_df['number_interactions_voter_candidate'], color='teal', log=True, bins=1000, edgecolor='black')
+
+ax.set_title('Distribution of Number of Contacts', fontsize=16)
+ax.set_xlabel('Number of Contacts', fontsize=14)
+ax.set_ylabel('Frequency (Log Scale)', fontsize=14)
+
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(fontsize=12)
+
+plt.grid(True, which="both", ls="--", linewidth=0.5)
+
+plt.show()
 
 # %% [markdown]
 # To have a better understanding of the interactions, we plot them in a graph. We also plot the degree rank plot and histogram. The degree of a node is the number of edges adjacents to the node. This plot helps us to better understand the distribution of the number of adjacent nodes. We can see that most of the nodes have a low degree.
@@ -1132,87 +1138,91 @@ def get_number_interactions (voter, target , edges_df) :
 # %%
 interactions_df
 
-# %% [raw]
-# #Now we will look into what influences particularly the outcome of a voted
-# dataset = []
-# unique_voters = edges_df['source'].unique()
-#
-# for voter in unique_voters : 
-#
-#     voter_elections = elect_dynamics_df[elect_dynamics_df['source'] == voter]['global_election_id'].unique()
-#     #We get the list of the contact of the voter
-#     list_contacts_voters = edges_df[edges_df['source'] == voter]['target'].values
-#
-#     for election in voter_elections :
-#
-#         #Get the vote of the voter in the election 
-#         vote = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['vote'].values[0]
-#
-#         if list_contacts_voters.size == 0 :
-#             dataset.append({
-#                 'voter' : voter,
-#                 'number_positive_votes' : 0,
-#                 'number_negative_votes' : 0,
-#                 'interaction_target_user' :  get_number_interactions(voter, target, edges_df),
-#                 'vote' : 0
-#             })
-#
-#         else : 
-#     
-#             election_id = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['global_election_id'].values[0]
-#             date_vote = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['date_vote'].values[0]
-#
-#             #Compute the stats
-#             filtered_iter_df = elect_dynamics_df[(elect_dynamics_df['global_election_id'] == election_id) & 
-#                                                 (elect_dynamics_df['date_vote'] < date_vote) &
-#                                                 (elect_dynamics_df['source'].isin(list_contacts_voters))]
-#             
-#             #Get the number of positive votes
-#             number_positive_votes = filtered_iter_df[filtered_iter_df['vote'] == 1]['vote'].count()
-#
-#             #Get the number of negative votes
-#             number_negative_votes = filtered_iter_df[filtered_iter_df['vote'] == -1]['vote'].count()
-#
-#             
-#             #If the vote is neutral we don't take into account
-#             if vote == 0 : 
-#                 continue
-#             
-#             #now we add to the dataset the stats 
-#             dataset.append({
-#                 'voter' : voter,
-#                 'number_positive_votes' : number_positive_votes,
-#                 'number_negative_votes' : number_negative_votes,
-#                 'interaction_target_user' : get_number_interactions(voter, target, edges_df),
-#                 'vote' : vote
-#             })
+# %%
+# /!\ Long execution time
+#Now we will look into what influences particularly the outcome of a voted
+dataset = []
+unique_voters = edges_df['source'].unique()
 
-# %% [raw]
-# dataset_df = pd.DataFrame(dataset)
-# dataset_df
-#
-# #change the -1 vote to 0
-# dataset_df['vote'] = dataset_df['vote'].replace({-1 : 0})
+for voter in unique_voters : 
 
-# %% [raw]
-# #Run a logistic regression on the dataset
-# mod = smf.logit(formula='vote ~ number_positive_votes + number_negative_votes + interaction_target_user', data=dataset_df)
-#
-# res = mod.fit()
-# print(res.summary())
+    voter_elections = elect_dynamics_df[elect_dynamics_df['source'] == voter]['global_election_id'].unique()
+    #We get the list of the contact of the voter
+    list_contacts_voters = edges_df[edges_df['source'] == voter]['target'].values
 
-# %% [raw]
-# # We sort the nodes in the graph by their degree
-# degree_sequence = sorted((d for n, d in G.degree()), reverse=True)
-# unique_degree, counts = np.unique(degree_sequence, return_counts=True)
-#
-# # Degree histogram
-# plt.bar(unique_degree, counts,width=10, color='b')
-# plt.title("Degree histogram")
-# plt.xlabel("Degree")
-# plt.ylabel("# of Nodes")
-#
-# plt.show()
+    for election in voter_elections :
+
+        #Get the vote of the voter in the election 
+        vote = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['vote'].values[0]
+
+        if list_contacts_voters.size == 0 :
+            dataset.append({
+                'voter' : voter,
+                'number_positive_votes' : 0,
+                'number_negative_votes' : 0,
+                'interaction_target_user' :  get_number_interactions(voter, target, edges_df),
+                'vote' : 0
+            })
+
+        else : 
+    
+            election_id = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['global_election_id'].values[0]
+            date_vote = elect_dynamics_df[(elect_dynamics_df['source'] == voter) & (elect_dynamics_df['global_election_id'] == election)]['date_vote'].values[0]
+
+            #Compute the stats
+            filtered_iter_df = elect_dynamics_df[(elect_dynamics_df['global_election_id'] == election_id) & 
+                                                (elect_dynamics_df['date_vote'] < date_vote) &
+                                                (elect_dynamics_df['source'].isin(list_contacts_voters))]
+            
+            #Get the number of positive votes
+            number_positive_votes = filtered_iter_df[filtered_iter_df['vote'] == 1]['vote'].count()
+
+            #Get the number of negative votes
+            number_negative_votes = filtered_iter_df[filtered_iter_df['vote'] == -1]['vote'].count()
+
+            
+            #If the vote is neutral we don't take into account
+            if vote == 0 : 
+                continue
+            
+            #now we add to the dataset the stats 
+            dataset.append({
+                'voter' : voter,
+                'number_positive_votes' : number_positive_votes,
+                'number_negative_votes' : number_negative_votes,
+                'interaction_target_user' : get_number_interactions(voter, target, edges_df),
+                'vote' : vote
+            })
+
+# %%
+# /!\ Long execution time
+dataset_df = pd.DataFrame(dataset)
+dataset_df
+
+#change the -1 vote to 0
+dataset_df['vote'] = dataset_df['vote'].replace({-1 : 0})
+
+# %%
+# /!\ Long execution time
+#Run a logistic regression on the dataset
+mod = smf.logit(formula='vote ~ number_positive_votes + number_negative_votes + interaction_target_user', data=dataset_df)
+
+res = mod.fit()
+print(res.summary())
+
+# %%
+# /!\ Long execution time
+# We sort the nodes in the graph by their degree
+degree_sequence = sorted((d for n, d in G.degree()), reverse=True)
+unique_degree, counts = np.unique(degree_sequence, return_counts=True)
+
+# Degree histogram
+plt.bar(unique_degree, counts,width=10, color='b')
+plt.title("Degree histogram")
+plt.xlabel("Degree")
+plt.ylabel("# of Nodes")
+
+plt.show()
 
 # %% [markdown]
 # ### Communities <a class="anchor" id="communities_communities"></a>
@@ -1631,29 +1641,33 @@ matrix_similarity
 # %% [markdown]
 # Create a DataFrame with all pairs of users and a binary variable that indicates if a vote exists for each pair. It will be helpful to computes the correlation between similarity in edited pages and voting interaction between two users.
 
-# %% [raw]
-# similarity_and_vote = pd.DataFrame(index=list(combinations(list(users), 2)), columns=['vote', 'jaccard'])
+# %%
+# /!\ Long execution time
+similarity_and_vote = pd.DataFrame(index=list(combinations(list(users), 2)), columns=['vote', 'jaccard'])
 
-# %% [raw]
-# # Fill in the new similarity_and_vote with the values from matrix_similarity
-# # Takes 30 minutes to run...
-# for i, index_row in enumerate(similarity_and_vote.iterrows()):
-#     similarity_and_vote.at[index_row[0], 'jaccard'] = matrix_similarity.at[index_row[0][0], index_row[0][1]]
+# %%
+# /!\ Long execution time
+# Fill in the new similarity_and_vote with the values from matrix_similarity
+# Takes 30 minutes to run...
+for i, index_row in enumerate(similarity_and_vote.iterrows()):
+    similarity_and_vote.at[index_row[0], 'jaccard'] = matrix_similarity.at[index_row[0][0], index_row[0][1]]
 
-# %% [raw]
-# # Fill in the new similarity_and_vote with the binary values that indicate the presence of the votes
-# list_users = list(matrix_similarity.index)
-#
-# for index, row in df.iterrows():
-#     if (row['source'] in list_users) & (row['target'] in list_users):
-#         if (row['source'], row['target']) in similarity_and_vote.index:
-#             similarity_and_vote.at[(row['source'], row['target']), 'vote'] = 1
-#         elif (row['target'], row['source']) in similarity_and_vote.index:
-#             similarity_and_vote.at[(row['target'], row['source']), 'vote'] = 1
-# similarity_and_vote = similarity_and_vote.fillna(0)
+# %%
+# /!\ Long execution time
+# Fill in the new similarity_and_vote with the binary values that indicate the presence of the votes
+list_users = list(matrix_similarity.index)
 
-# %% [raw]
-# similarity_and_vote.to_csv('jaccard_and_votes.csv', index=True)
+for index, row in df.iterrows():
+    if (row['source'] in list_users) & (row['target'] in list_users):
+        if (row['source'], row['target']) in similarity_and_vote.index:
+            similarity_and_vote.at[(row['source'], row['target']), 'vote'] = 1
+        elif (row['target'], row['source']) in similarity_and_vote.index:
+            similarity_and_vote.at[(row['target'], row['source']), 'vote'] = 1
+similarity_and_vote = similarity_and_vote.fillna(0)
+
+# %%
+# /!\ Long execution time
+similarity_and_vote.to_csv('jaccard_and_votes.csv', index=True)
 
 # %%
 similarity_and_vote = pd.read_csv("../data/jaccard_and_votes.csv.zip", index_col=0, compression='zip')
