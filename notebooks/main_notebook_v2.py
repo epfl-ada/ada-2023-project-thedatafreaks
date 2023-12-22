@@ -1567,7 +1567,7 @@ fig = gv.vis(G, show_menu_toggle_button = False, show_details_toggle_button = Fa
 #fig.show() #Uncomment this line for interactive plot
 
 # %% [markdown]
-# ![title](./graph_communities.png)
+# ![title](../data/graph_communities.png)
 
 # %% [markdown]
 # # Content of edits analysis <a class="anchor" id="edits"></a>
